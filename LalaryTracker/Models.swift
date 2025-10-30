@@ -12,7 +12,7 @@ struct Lesson: Identifiable, Codable{
     var date: Date
     var durationHours: Double
     var rateApplied: Double
-    var type: String
+    var type: String?
     var isPaid: Bool = false
     
     var cost: Double{
