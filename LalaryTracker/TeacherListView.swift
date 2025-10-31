@@ -1,8 +1,8 @@
 //
-//  TeacherListView.swift
-//  LalaryTracker
+//  TeacherListView.swift
+//  LalaryTracker
 //
-//  Created by Taras Buhra on 30.10.2025.
+//  Created by Taras Buhra on 30.10.2025.
 //
 
 import SwiftUI
@@ -15,7 +15,7 @@ struct TeachersListView: View {
     @State private var showingAddTeacherSheet = false
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             
             List {
                 if dataStore.teachers.isEmpty {
@@ -83,7 +83,7 @@ struct TeacherRow: View {
     var body: some View {
         HStack(alignment: .center) {
             
-  
+            
             Image(systemName: "person.circle.fill")
                 .resizable()
                 .frame(width: 40, height: 40)
@@ -95,7 +95,7 @@ struct TeacherRow: View {
                     .font(.headline)
                     .lineLimit(1)
                 
-               
+                
                 Text("Уроків: \(teacher.lessons.count)")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
@@ -109,7 +109,7 @@ struct TeacherRow: View {
                     .fontWeight(.medium)
                     .foregroundColor(.gray)
                 
-      
+                
                 Text(teacher.totalUnpaidSalary, format: .currency(code: "UAH"))
                     .font(.title3)
                     .fontWeight(.bold)

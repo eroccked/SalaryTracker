@@ -13,7 +13,7 @@ struct LalaryTrackerApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            SplashView()
                 .environmentObject(dataStore)
         }
     }
