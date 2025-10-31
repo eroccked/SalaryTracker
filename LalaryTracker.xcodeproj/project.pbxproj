@@ -32,8 +32,8 @@
 		17797B442EB3AEE60021B924 = {
 			isa = PBXGroup;
 			children = (
-				17797B4F2EB3AEE60021B924 /* LalaryTracker */,
 				17797B4E2EB3AEE60021B924 /* Products */,
+				17797B4F2EB3AEE60021B924 /* LalaryTracker */,
 			);
 			sourceTree = "<group>";
 		};
