@@ -1,41 +1,54 @@
 //
-//  TeacherDetailsView.swift
-//  LalaryTracker
+//  TeacherDetailsView.swift
+//  LalaryTracker
 //
-//  Created by Taras Buhra on 30.10.2025.
+//  Created by Taras Buhra on 30.10.2025.
 //
 
 import SwiftUI
 
 struct TeacherDetailsView: View {
     @Binding var teacher: Teacher
+    @EnvironmentObject var dataStore: DataStore
     
     @State private var showingAddLessonSheet = false
+    @State private var showingStatsSheet = false
+    
+    var sortedLessons: [Lesson] {
+        teacher.lessons.sorted(by: { $0.date > $1.date })
+    }
     
     var body: some View {
         List {
-            Section("Статистика Зарплати") {
+            Section {
                 HStack {
-                    VStack(alignment: .leading) {
-                        Text("Неоплачено годин:")
-                        Text("Неоплачена сума:")
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing) {
-                        Text("\(calculateUnpaidHours(), specifier: "%.1f") год")
-                            .bold()
-                        Text(teacher.totalUnpaidSalary, format: .currency(code: "UAH"))
-                            .foregroundColor(teacher.totalUnpaidSalary > 0 ? .red : .secondary)
-                            .bold()
-                    }
+                    MetricCard(
+                        title: "Неоплачено",
+                        value: teacher.totalUnpaidSalary,
+                        unit: "UAH",
+                        color: .red
+                    )
+                    
+                    MetricCard(
+                        title: "Всього Виплачено",
+                        value: teacher.totalPaidSalary,
+                        unit: "UAH",
+                        color: .green
+                    )
                 }
                 
                 HStack {
-                    Text("Всього виплачено:")
+                    Image(systemName: "clock.fill")
+                    Text("Неоплачено годин:")
                     Spacer()
-                    Text(teacher.totalPaidSalary, format: .currency(code: "UAH"))
-                        .foregroundColor(.green)
+                    Text("\(calculateUnpaidHours(), specifier: "%.1f")")
+                        .bold()
+                        .foregroundColor(.accentColor)
+                    Text("год")
                 }
+                .padding(8)
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
             }
             
             Section("Уроки (\(teacher.lessons.count))") {
@@ -43,8 +56,18 @@ struct TeacherDetailsView: View {
                     Text("Уроків ще немає. Додайте перший урок!")
                         .foregroundColor(.gray)
                 } else {
-                    ForEach(teacher.lessons.sorted(by: { $0.date > $1.date })) { lesson in
-                        LessonRow(lesson: lesson)
+                    
+                    ForEach(sortedLessons) { lesson in
+                        
+                        if let index = teacher.lessons.firstIndex(where: { $0.id == lesson.id }) {
+                            
+                            NavigationLink {
+                                EditLessonView(lesson: $teacher.lessons[index])
+                                    .environmentObject(dataStore)
+                            } label: {
+                                LessonRow(lesson: lesson)
+                            }
+                        }
                     }
                     .onDelete(perform: deleteLesson)
                 }
@@ -52,23 +75,39 @@ struct TeacherDetailsView: View {
         }
         .navigationTitle(teacher.name)
         .toolbar {
-            Button {
-                showingAddLessonSheet = true
-            } label: {
-                Label("Додати Урок", systemImage: "plus.circle.fill")
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showingStatsSheet = true
+                } label: {
+                    Label("Статистика", systemImage: "chart.bar.xaxis")
+                }
+            }
+            
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showingAddLessonSheet = true
+                } label: {
+                    Label("Додати Урок", systemImage: "plus.circle.fill")
+                }
             }
         }
         .sheet(isPresented: $showingAddLessonSheet) {
             AddLessonView(teacherLessons: $teacher.lessons)
+                .environmentObject(dataStore)
+        }
+        
+        .sheet(isPresented: $showingStatsSheet) {
+            TeacherStatisticsView(teacher: teacher)
+                .environmentObject(dataStore)
         }
     }
+    
     
     func calculateUnpaidHours() -> Double {
         return teacher.lessons.filter { !$0.isPaid }.reduce(0.0) { $0 + $1.durationHours }
     }
     
     func deleteLesson(offsets: IndexSet) {
-        let sortedLessons = teacher.lessons.sorted(by: { $0.date > $1.date })
         let lessonsToDelete = offsets.map { sortedLessons[$0].id }
         
         teacher.lessons.removeAll { lessonsToDelete.contains($0.id) }
@@ -76,6 +115,7 @@ struct TeacherDetailsView: View {
 }
 
 
+// MARK: - LessonRow
 
 struct LessonRow: View {
     let lesson: Lesson
@@ -87,11 +127,10 @@ struct LessonRow: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 
-                Text(lesson.type ?? "Урок")
+                Text(lesson.type.name)
                     .bold()
                 + Text(" (\(lesson.durationHours, specifier: "%.1f") год)")
-                    .font(.callout)
-            }
+                    .font(.callout)            }
             
             Spacer()
             
@@ -107,5 +146,37 @@ struct LessonRow: View {
                     .font(.caption2)
             }
         }
+    }
+}
+
+
+// MARK: - MetricCard
+
+struct MetricCard: View {
+    let title: String
+    let value: Double
+    let unit: String
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            HStack(alignment: .lastTextBaseline) {
+                Text(value, format: .currency(code: unit))
+                    .font(.title2)
+                    .fontWeight(.heavy)
+                    .foregroundColor(color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
     }
 }

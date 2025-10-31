@@ -11,8 +11,10 @@ struct Lesson: Identifiable, Codable{
     let id = UUID()
     var date: Date
     var durationHours: Double
+    
+    var type: LessonType
+    
     var rateApplied: Double
-    var type: String?
     var isPaid: Bool = false
     
     var cost: Double{
@@ -37,4 +39,10 @@ struct Teacher: Identifiable, Codable{
         let totalCost = paidLessons.reduce(0.0) {sum, lesson in sum + lesson.cost}
         return totalCost
     }
+}
+
+struct LessonType: Identifiable, Codable, Hashable {
+    let id = UUID()
+    var name: String
+    var defaultRate: Double
 }

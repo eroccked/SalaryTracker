@@ -1,25 +1,39 @@
 //
-//  AddLessonView.swift
+//  EditLessonView.swift
 //  LalaryTracker
 //
-//  Created by Taras Buhra on 30.10.2025.
-
+//  Created by Taras Buhra on 31.10.2025.
+//
+//
+//  EditLessonView.swift
+//  LalaryTracker
+//
+//  Created by Taras Buhra on 30.10.2025.
+//
 
 import SwiftUI
 
-struct AddLessonView: View {
-    @Binding var teacherLessons: [Lesson]
+struct EditLessonView: View {
+    @Binding var lesson: Lesson
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var dataStore: DataStore
     
-    @State private var lessonDate = Date()
-    @State private var durationHours: Double = 1.0
-    @State private var isPaid: Bool = false
-    
+    @State private var lessonDate: Date
+    @State private var durationHours: Double
+    @State private var isPaid: Bool
     @State private var selectedType: LessonType?
+    @State private var rateApplied: Double
     
-    @State private var rateApplied: Double = 0.0
-    
+
+    init(lesson: Binding<Lesson>) {
+        _lesson = lesson
+        
+        _lessonDate = State(initialValue: lesson.wrappedValue.date)
+        _durationHours = State(initialValue: lesson.wrappedValue.durationHours)
+        _isPaid = State(initialValue: lesson.wrappedValue.isPaid)
+        _selectedType = State(initialValue: lesson.wrappedValue.type)
+        _rateApplied = State(initialValue: lesson.wrappedValue.rateApplied)
+    }
     
     let durationFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -42,6 +56,7 @@ struct AddLessonView: View {
                                 .tag(type as LessonType?)
                         }
                     }
+
                     HStack {
                         Text("Тривалість (годин)")
                         Spacer()
@@ -58,7 +73,6 @@ struct AddLessonView: View {
                             .multilineTextAlignment(.trailing)
                     }
                     .foregroundColor(selectedType != nil ? .primary : .red)
-
                 }
                 
                 Section("Статус Оплати") {
@@ -76,19 +90,17 @@ struct AddLessonView: View {
                     }
                 }
             }
-            .navigationTitle("Додати Урок")
+            .navigationTitle("Редагування Уроку")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Скасувати") { dismiss() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Зберегти") { saveLesson() }
+                    Button("Оновити") { updateLesson() }
                         .disabled(selectedType == nil || rateApplied <= 0 || durationHours <= 0)
                 }
             }
         }
-        
-        // MARK: - Логіка Синхронізації та Ініціалізації
         
         .onChange(of: selectedType) { newType in
             if let type = newType {
@@ -97,30 +109,21 @@ struct AddLessonView: View {
                 rateApplied = 0.0
             }
         }
-        .onAppear {
-            if selectedType == nil, let firstType = dataStore.lessonTypes.first {
-                selectedType = firstType
-                rateApplied = firstType.defaultRate
-            }
-        }
     }
     
-    // MARK: - saveLesson()
-    func saveLesson() {
-
+    func updateLesson() {
         guard let type = selectedType else {
             return
         }
-
-        let newLesson = Lesson(
-            date: lessonDate,
-            durationHours: durationHours,
-            type: type,
-            rateApplied: rateApplied,
-            isPaid: isPaid
-        )
         
-        teacherLessons.append(newLesson)
+        // Оновлюємо оригінальний об'єкт lesson через Binding
+        lesson.date = lessonDate
+        lesson.durationHours = durationHours
+        lesson.isPaid = isPaid
+        lesson.type = type
+        lesson.rateApplied = rateApplied
+        
+
         
         dismiss()
     }
