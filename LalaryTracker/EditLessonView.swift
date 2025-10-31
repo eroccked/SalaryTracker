@@ -1,70 +1,59 @@
-//
-//  EditLessonView.swift
-//  LalaryTracker
-//
-//  Created by Taras Buhra on 31.10.2025.
-//
-//
-//  EditLessonView.swift
-//  LalaryTracker
-//
-//  Created by Taras Buhra on 30.10.2025.
-//
-
 import SwiftUI
 
 struct EditLessonView: View {
     @Binding var lesson: Lesson
-    @Environment(\.dismiss) var dismiss
     @EnvironmentObject var dataStore: DataStore
+    @Environment(\.dismiss) var dismiss
     
     @State private var lessonDate: Date
-    @State private var durationHours: Double
-    @State private var isPaid: Bool
-    @State private var selectedType: LessonType?
+    @State private var durationHours: Int
     @State private var rateApplied: Double
+    @State private var selectedLessonType: LessonType
+    @State private var isPaid: Bool
     
-
+    let availableHours = Array(1...10)
+    
     init(lesson: Binding<Lesson>) {
-        _lesson = lesson
+        self._lesson = lesson
         
-        _lessonDate = State(initialValue: lesson.wrappedValue.date)
-        _durationHours = State(initialValue: lesson.wrappedValue.durationHours)
-        _isPaid = State(initialValue: lesson.wrappedValue.isPaid)
-        _selectedType = State(initialValue: lesson.wrappedValue.type)
-        _rateApplied = State(initialValue: lesson.wrappedValue.rateApplied)
+        self._lessonDate = State(initialValue: lesson.wrappedValue.date)
+        
+        self._durationHours = State(initialValue: Int(lesson.wrappedValue.durationHours.rounded()))
+        
+        self._rateApplied = State(initialValue: lesson.wrappedValue.rateApplied)
+        self._selectedLessonType = State(initialValue: lesson.wrappedValue.type)
+        self._isPaid = State(initialValue: lesson.wrappedValue.isPaid)
     }
     
-    let durationFormatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 1
-        return formatter
-    }()
+    func saveChanges() {
+        lesson.date = lessonDate
+        lesson.durationHours = Double(durationHours) //
+        lesson.rateApplied = rateApplied
+        lesson.type = selectedLessonType
+        lesson.isPaid = isPaid
+        
+        dismiss()
+    }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
-                Section("Деталі Уроку") {
+                Section("Деталі уроку") {
                     DatePicker("Дата Уроку", selection: $lessonDate, displayedComponents: .date)
                     
-                    Picker("Тип Уроку", selection: $selectedType) {
-                        Text("Оберіть тип").tag(nil as LessonType?)
-                        
-                        ForEach(dataStore.lessonTypes, id: \.self) { type in
-                            Text(type.name)
-                                .tag(type as LessonType?)
+                    Picker("Тривалість (годин)", selection: $durationHours) {
+                        ForEach(availableHours, id: \.self) { hour in
+                            Text("\(hour) год")
                         }
                     }
+                    .pickerStyle(.wheel)
 
-                    HStack {
-                        Text("Тривалість (годин)")
-                        Spacer()
-                        TextField("Години", value: $durationHours, formatter: durationFormatter)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
+                    Picker("Тип Уроку", selection: $selectedLessonType) {
+
+                        ForEach(dataStore.lessonTypes) { type in
+                            Text(type.name).tag(type)
+                        }
                     }
-                    
                     HStack {
                         Text("Ставка за годину (грн)")
                         Spacer()
@@ -72,59 +61,38 @@ struct EditLessonView: View {
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                     }
-                    .foregroundColor(selectedType != nil ? .primary : .red)
+                    
+                    HStack {
+                        Text("Вартість уроку")
+                        Spacer()
+                        Text(Double(durationHours) * rateApplied, format: .currency(code: "UAH"))
+                            .fontWeight(.bold)
+                    }
                 }
                 
                 Section("Статус Оплати") {
                     Toggle("Урок оплачено?", isOn: $isPaid)
                 }
                 
-                let cost = durationHours * rateApplied
-                Section("Вартість Уроку (Розрахунок)") {
-                    HStack {
-                        Text("Загальна вартість:")
-                        Spacer()
-                        Text(cost, format: .currency(code: "UAH"))
-                            .bold()
-                            .foregroundColor(.accentColor)
+                Section {
+                    Button("Зберегти Зміни") {
+                        saveChanges()
                     }
                 }
             }
-            .navigationTitle("Редагування Уроку")
+            .navigationTitle("Редагувати Урок")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Скасувати") { dismiss() }
+                    Button("Відмінити") {
+                        dismiss()
+                    }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Оновити") { updateLesson() }
-                        .disabled(selectedType == nil || rateApplied <= 0 || durationHours <= 0)
+            }
+            .onChange(of: selectedLessonType) { newType in
+                if rateApplied != lesson.rateApplied {
+                    rateApplied = newType.defaultRate
                 }
             }
         }
-        
-        .onChange(of: selectedType) { newType in
-            if let type = newType {
-                rateApplied = type.defaultRate
-            } else {
-                rateApplied = 0.0
-            }
-        }
-    }
-    
-    func updateLesson() {
-        guard let type = selectedType else {
-            return
-        }
-        
-        // Оновлюємо оригінальний об'єкт lesson через Binding
-        lesson.date = lessonDate
-        lesson.durationHours = durationHours
-        lesson.isPaid = isPaid
-        lesson.type = type
-        lesson.rateApplied = rateApplied
-        
-
-        
-        dismiss()
     }
 }

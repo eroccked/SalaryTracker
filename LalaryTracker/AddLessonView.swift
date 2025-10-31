@@ -3,51 +3,61 @@
 //  LalaryTracker
 //
 //  Created by Taras Buhra on 30.10.2025.
-
+//
 
 import SwiftUI
 
 struct AddLessonView: View {
+
     @Binding var teacherLessons: [Lesson]
-    @Environment(\.dismiss) var dismiss
     @EnvironmentObject var dataStore: DataStore
-    
+    @Environment(\.dismiss) var dismiss
+
     @State private var lessonDate = Date()
-    @State private var durationHours: Double = 1.0
+    @State private var durationHours: Int = 1
+    @State private var rateApplied: Double = 450
+    
+    @State private var selectedLessonType: LessonType? = nil
     @State private var isPaid: Bool = false
     
-    @State private var selectedType: LessonType?
+    let availableHours = Array(1...10)
     
-    @State private var rateApplied: Double = 0.0
-    
-    
-    let durationFormatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 1
-        return formatter
-    }()
+    func saveLesson() {
+        guard let finalLessonType = selectedLessonType else {
+            print("Помилка: Не обрано тип уроку.")
+            return
+        }
+
+        let newLesson = Lesson(
+            date: lessonDate,
+            durationHours: Double(durationHours),
+            type: finalLessonType, rateApplied: rateApplied,
+            isPaid: isPaid
+        )
+        
+        teacherLessons.append(newLesson)
+        
+        dismiss()
+    }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
-                Section("Деталі Уроку") {
+                Section("Деталі уроку") {
                     DatePicker("Дата Уроку", selection: $lessonDate, displayedComponents: .date)
                     
-                    Picker("Тип Уроку", selection: $selectedType) {
-                        Text("Оберіть тип").tag(nil as LessonType?)
-                        
-                        ForEach(dataStore.lessonTypes, id: \.self) { type in
-                            Text(type.name)
-                                .tag(type as LessonType?)
+                    Picker("Тривалість (годин)", selection: $durationHours) {
+                        ForEach(availableHours, id: \.self) { hour in
+                            Text("\(hour) год")
                         }
                     }
-                    HStack {
-                        Text("Тривалість (годин)")
-                        Spacer()
-                        TextField("Години", value: $durationHours, formatter: durationFormatter)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
+                    .pickerStyle(.wheel)
+
+                    Picker("Тип Уроку", selection: $selectedLessonType) {
+                        Text("Оберіть тип").tag(nil as LessonType?)
+                        ForEach(dataStore.lessonTypes) { type in
+                            Text(type.name).tag(type as LessonType?)
+                        }
                     }
                     
                     HStack {
@@ -57,71 +67,37 @@ struct AddLessonView: View {
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                     }
-                    .foregroundColor(selectedType != nil ? .primary : .red)
-
                 }
                 
                 Section("Статус Оплати") {
                     Toggle("Урок оплачено?", isOn: $isPaid)
                 }
                 
-                let cost = durationHours * rateApplied
-                Section("Вартість Уроку (Розрахунок)") {
-                    HStack {
-                        Text("Загальна вартість:")
-                        Spacer()
-                        Text(cost, format: .currency(code: "UAH"))
-                            .bold()
-                            .foregroundColor(.accentColor)
+                Section {
+                    Button("Зберегти Урок") {
+                        saveLesson()
                     }
+                    .disabled(selectedLessonType == nil)
                 }
             }
             .navigationTitle("Додати Урок")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Скасувати") { dismiss() }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Зберегти") { saveLesson() }
-                        .disabled(selectedType == nil || rateApplied <= 0 || durationHours <= 0)
+                    Button("Відмінити") {
+                        dismiss()
+                    }
                 }
             }
-        }
-        
-        // MARK: - Логіка Синхронізації та Ініціалізації
-        
-        .onChange(of: selectedType) { newType in
-            if let type = newType {
-                rateApplied = type.defaultRate
-            } else {
-                rateApplied = 0.0
+            .onChange(of: selectedLessonType) { newType in
+                if let type = newType {
+                    rateApplied = type.defaultRate
+                }
+            }
+            .onAppear {
+                if selectedLessonType == nil {
+                    selectedLessonType = dataStore.lessonTypes.first
+                }
             }
         }
-        .onAppear {
-            if selectedType == nil, let firstType = dataStore.lessonTypes.first {
-                selectedType = firstType
-                rateApplied = firstType.defaultRate
-            }
-        }
-    }
-    
-    // MARK: - saveLesson()
-    func saveLesson() {
-
-        guard let type = selectedType else {
-            return
-        }
-
-        let newLesson = Lesson(
-            date: lessonDate,
-            durationHours: durationHours,
-            type: type,
-            rateApplied: rateApplied,
-            isPaid: isPaid
-        )
-        
-        teacherLessons.append(newLesson)
-        
-        dismiss()
     }
 }
