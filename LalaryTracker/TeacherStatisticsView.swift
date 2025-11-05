@@ -1,8 +1,8 @@
 //
-//  TeacherStatisticsView.swift
-//  LalaryTracker
+//  TeacherStatisticsView.swift
+//  LalaryTracker
 //
-//  Created by Taras Buhra on 31.10.2025.
+//  Created by Taras Buhra on 31.10.2025.
 //
 
 import SwiftUI
@@ -12,6 +12,13 @@ struct TeacherStatisticsView: View {
     let teacher: Teacher
     
     @State private var selectedDate = Date()
+    
+    var titleDateString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "LLLL yyyy"
+        formatter.locale = Locale(identifier: "uk_UA")
+        return formatter.string(from: selectedDate).capitalized
+    }
     
     var filteredLessons: [Lesson] {
         let calendar = Calendar.current
@@ -59,7 +66,7 @@ struct TeacherStatisticsView: View {
                 LessonDetailedList(lessons: filteredLessons)
             }
         }
-        .navigationTitle("Статистика \(Calendar.current.monthSymbols[Calendar.current.component(.month, from: selectedDate) - 1])")
+        .navigationTitle("Статистика за \(titleDateString)")
     }
 }
 
@@ -120,7 +127,6 @@ struct StatisticsSummaryView: View {
                 .padding(.horizontal)
             
             HStack {
-                // ПЕРЕКОНАЙТЕСЯ, ЩО MetricCard ДОСТУПНИЙ (він має бути в TeacherDetailsView.swift)
                 MetricCard(title: "До виплати", value: totalUnpaid, unit: "UAH", color: .red)
                 MetricCard(title: "Всього оплачено", value: totalPaid, unit: "UAH", color: .green)
             }
@@ -200,5 +206,68 @@ struct LessonDetailedList: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Спільні Компоненти
+
+struct LessonRow: View {
+    let lesson: Lesson
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(lesson.date, style: .date)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Text(lesson.type.name)
+                    .bold()
+                + Text(" (\(lesson.durationHours, specifier: "%.1f") год)")
+                    .font(.callout)            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing) {
+                Text("Ставка: \(lesson.rateApplied, specifier: "%.2f")")
+                    .font(.caption)
+                
+                Text(lesson.cost, format: .currency(code: "UAH"))
+                    .foregroundColor(lesson.isPaid ? .green : .red)
+                    .bold()
+                
+                Text(lesson.isPaid ? "✅ Оплачено" : "❌ Не оплачено")
+                    .font(.caption2)
+            }
+        }
+    }
+}
+
+struct MetricCard: View {
+    let title: String
+    let value: Double
+    let unit: String
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            HStack(alignment: .lastTextBaseline) {
+                Text(value, format: .currency(code: unit))
+                    .font(.title2)
+                    .fontWeight(.heavy)
+                    .foregroundColor(color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
     }
 }
