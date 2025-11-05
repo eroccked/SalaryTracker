@@ -8,6 +8,7 @@ final class DataStore: ObservableObject {
     @Published var teachers: [Teacher] = [] {
         didSet {
             saveTeachers()
+            loadTypes()
         }
     }
     @Published var lessonTypes: [LessonType] = [] {
