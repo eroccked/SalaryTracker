@@ -18,6 +18,8 @@ struct TeacherDetailsView: View {
         teacher.lessons.sorted(by: { $0.date > $1.date })
     }
     
+    
+    
     var body: some View {
         List {
             Section {
