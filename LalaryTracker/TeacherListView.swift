@@ -13,6 +13,11 @@ struct TeachersListView: View {
     
     @State private var showingTypeManagerSheet = false
     @State private var showingAddTeacherSheet = false
+    @State private var showingUnpaidLessonsSheet = false
+    
+    func deleteTeacher(offsets: IndexSet) {
+        dataStore.teachers.remove(atOffsets: offsets)
+    }
     
     var body: some View {
         NavigationStack {
@@ -38,18 +43,23 @@ struct TeachersListView: View {
             .navigationTitle("🧑‍🏫 Викладачі")
             .toolbar {
                 
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItemGroup(placement: .navigationBarLeading) {
+                    
+                    EditButton()
+                    
                     Button {
                         showingTypeManagerSheet = true
                     } label: {
                         Label("Керування Типами", systemImage: "gearshape.fill")
                     }
+                    
+                    Button {
+                        showingUnpaidLessonsSheet = true
+                    } label: {
+                        Label("Неоплачені", systemImage: "banknote.fill")
+                    }
                 }
                 
-                ToolbarItem(placement: .navigationBarLeading) {
-                    EditButton()
-                }
-
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showingAddTeacherSheet = true
@@ -57,6 +67,7 @@ struct TeachersListView: View {
                         Label("Додати викладача", systemImage: "plus.circle.fill")
                     }
                 }
+                
             }
             
             .sheet(isPresented: $showingAddTeacherSheet) {
@@ -68,11 +79,11 @@ struct TeachersListView: View {
                 LessonTypeManagerView()
                     .environmentObject(dataStore)
             }
+            .sheet(isPresented: $showingUnpaidLessonsSheet) {
+                UnpaidLessonsView()
+                    .environmentObject(dataStore)
+            }
         }
-    }
-    
-    func deleteTeacher(offsets: IndexSet) {
-        dataStore.teachers.remove(atOffsets: offsets)
     }
 }
 
@@ -90,11 +101,9 @@ struct TeacherRow: View {
                 .foregroundColor(.accentColor)
             
             VStack(alignment: .leading, spacing: 4) {
-                // 2. Ім'я
                 Text(teacher.name)
                     .font(.headline)
                     .lineLimit(1)
-                
                 
                 Text("Уроків: \(teacher.lessons.count)")
                     .font(.subheadline)
@@ -113,7 +122,6 @@ struct TeacherRow: View {
                 Text(teacher.totalUnpaidSalary, format: .currency(code: "UAH"))
                     .font(.title3)
                     .fontWeight(.bold)
-                    // Колір залежить від наявності боргу
                     .foregroundColor(teacher.totalUnpaidSalary > 0 ? .red : .green)
             }
             .padding(.vertical, 8)
