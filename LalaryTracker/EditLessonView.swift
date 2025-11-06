@@ -27,7 +27,7 @@ struct EditLessonView: View {
     
     func saveChanges() {
         lesson.date = lessonDate
-        lesson.durationHours = Double(durationHours) //
+        lesson.durationHours = Double(durationHours)
         lesson.rateApplied = rateApplied
         lesson.type = selectedLessonType
         lesson.isPaid = isPaid
@@ -88,8 +88,8 @@ struct EditLessonView: View {
                     }
                 }
             }
-            .onChange(of: selectedLessonType) { newType in
-                if rateApplied != lesson.rateApplied {
+            .onChange(of: selectedLessonType) { (newType: LessonType) in
+                if newType.defaultRate != rateApplied {
                     rateApplied = newType.defaultRate
                 }
             }

@@ -27,6 +27,7 @@ struct TeacherDetailsView: View {
     
     var previousMonthName: String {
         let calendar = Calendar.current
+        // Отримання дати попереднього місяця
         guard let previousMonthDate = calendar.date(byAdding: .month, value: -1, to: Date()) else { return "попередній місяць" }
         
         let formatter = DateFormatter()
@@ -39,47 +40,28 @@ struct TeacherDetailsView: View {
         let calendar = Calendar.current
         guard let previousMonthDate = calendar.date(byAdding: .month, value: -1, to: Date()) else { return 0 }
         
-        let previousMonthComponents = calendar.dateComponents([.year, .month], from: previousMonthDate)
+        let components = calendar.dateComponents([.year, .month], from: previousMonthDate)
         
         return teacher.lessons
+            .filter { !$0.isPaid }
             .filter { lesson in
                 let lessonComponents = calendar.dateComponents([.year, .month], from: lesson.date)
-                return lessonComponents.year == previousMonthComponents.year && lessonComponents.month == previousMonthComponents.month
+                return lessonComponents.year == components.year && lessonComponents.month == components.month
             }
-            .filter { !$0.isPaid }
-            .reduce(0) { $0 + $1.cost }
+            .reduce(0.0) { $0 + $1.cost }
     }
     
-    // MARK: - Функції
-    
-    func markPreviousMonthLessonsAsPaid() {
-        let calendar = Calendar.current
-        guard let previousMonthDate = calendar.date(byAdding: .month, value: -1, to: Date()) else { return }
-        
-        let previousMonthComponents = calendar.dateComponents([.year, .month], from: previousMonthDate)
-        
-        for index in teacher.lessons.indices {
-            let lesson = teacher.lessons[index]
-            let lessonComponents = calendar.dateComponents([.year, .month], from: lesson.date)
-            
-            if lessonComponents.year == previousMonthComponents.year &&
-                lessonComponents.month == previousMonthComponents.month &&
-                !lesson.isPaid {
-                
-                teacher.lessons[index].isPaid = true
-            }
-        }
-    }
+    // MARK: - Методи
     
     func deleteLesson(offsets: IndexSet) {
-        let lessonsToDelete = offsets.map { sortedLessons[$0].id }
-        teacher.lessons.removeAll { lessonsToDelete.contains($0.id) }
+        teacher.lessons.remove(atOffsets: offsets)
     }
     
-    // MARK: - Body View
+    // MARK: - Body
     
     var body: some View {
         List {
+            // MARK: Метрики
             Section {
                 HStack {
                     MetricCard(
@@ -97,26 +79,12 @@ struct TeacherDetailsView: View {
                     )
                 }
                 
-                if totalUnpaidSalaryForPreviousMonth > 0 {
-                    Button {
-                        markPreviousMonthLessonsAsPaid()
-                    } label: {
-                        HStack {
-                            Text("Мені заплатили \(totalUnpaidSalaryForPreviousMonth, format: .currency(code: "UAH")) за \(previousMonthName)")
-                                .bold()
-                            Spacer()
-                            Image(systemName: "banknote.fill")
-                        }
-                    }
-                    .foregroundColor(.white)
-                    .listRowBackground(Color.accentColor)
-                }
-                
                 HStack {
                     Image(systemName: "clock.fill")
                     Text("Неоплачено годин:")
                     Spacer()
-                    Text("\(calculateUnpaidHours, specifier: "%.1f")")
+                    
+                    Text(calculateUnpaidHours, format: .number.precision(.fractionLength(1)))
                         .bold()
                         .foregroundColor(.accentColor)
                     Text("год")
@@ -124,28 +92,40 @@ struct TeacherDetailsView: View {
                 .padding(8)
                 .background(Color(.systemGray6))
                 .cornerRadius(10)
+                
+                HStack {
+                    Image(systemName: "calendar")
+                    Text("Неоплачено за \(previousMonthName):")
+                    Spacer()
+                    Text(totalUnpaidSalaryForPreviousMonth, format: .currency(code: "UAH"))
+                        .bold()
+                        .foregroundColor(totalUnpaidSalaryForPreviousMonth > 0 ? .orange : .secondary)
+                }
+                .padding(8)
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
             }
             
-            Section("Уроки (\(teacher.lessons.count))") {
+            // MARK: Історія Уроків
+            Section("Історія Уроків") {
                 if teacher.lessons.isEmpty {
-                    Text("Уроків ще немає. Додайте перший урок!")
-                        .foregroundColor(.gray)
-                } else {
-                    
-                    ForEach(sortedLessons) { lesson in
+                    ContentUnavailableView("Немає Уроків",
+                                           systemImage: "list.clipboard",
+                                           description: Text("Додайте перший урок, натиснувши '+' у верхньому куті."))
+                }
+                
+                ForEach(sortedLessons) { lesson in
+                    if let index = teacher.lessons.firstIndex(where: { $0.id == lesson.id }) {
                         
-                        if let index = teacher.lessons.firstIndex(where: { $0.id == lesson.id }) {
-                            
-                            NavigationLink {
-                                EditLessonView(lesson: $teacher.lessons[index])
-                                    .environmentObject(dataStore)
-                            } label: {
-                                LessonRow(lesson: lesson)
-                            }
+                        NavigationLink {
+                            EditLessonView(lesson: $teacher.lessons[index])
+                                .environmentObject(dataStore)
+                        } label: {
+                            LessonRow(lesson: lesson)
                         }
                     }
-                    .onDelete(perform: deleteLesson)
                 }
+                .onDelete(perform: deleteLesson)
             }
         }
         .navigationTitle(teacher.name)
@@ -175,70 +155,5 @@ struct TeacherDetailsView: View {
             TeacherStatisticsView(teacher: teacher)
                 .environmentObject(dataStore)
         }
-    }
-}
-// MARK: - LessonRow
-
-struct LessonRow: View {
-    let lesson: Lesson
-    
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text(lesson.date, style: .date)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                Text(lesson.type.name)
-                    .bold()
-                + Text(" (\(lesson.durationHours, specifier: "%.1f") год)")
-                    .font(.callout)            }
-            
-            Spacer()
-            
-            VStack(alignment: .trailing) {
-                Text("Ставка: \(lesson.rateApplied, specifier: "%.2f")")
-                    .font(.caption)
-                
-                Text(lesson.cost, format: .currency(code: "UAH"))
-                    .foregroundColor(lesson.isPaid ? .green : .red)
-                    .bold()
-                
-                Text(lesson.isPaid ? "✅ Оплачено" : "❌ Не оплачено")
-                    .font(.caption2)
-            }
-        }
-    }
-}
-
-
-// MARK: - MetricCard
-
-struct MetricCard: View {
-    let title: String
-    let value: Double
-    let unit: String
-    let color: Color
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(title)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            
-            HStack(alignment: .lastTextBaseline) {
-                Text(value, format: .currency(code: unit))
-                    .font(.title2)
-                    .fontWeight(.heavy)
-                    .foregroundColor(color)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
     }
 }

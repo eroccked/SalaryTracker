@@ -88,7 +88,7 @@ struct AddLessonView: View {
                     }
                 }
             }
-            .onChange(of: selectedLessonType) { newType in
+            .onChange(of: selectedLessonType) { (newType: LessonType?) in
                 if let type = newType {
                     rateApplied = type.defaultRate
                 }

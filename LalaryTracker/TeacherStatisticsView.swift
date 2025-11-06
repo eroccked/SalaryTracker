@@ -8,10 +8,25 @@
 import SwiftUI
 import Charts
 
+// MARK: - ChartData
+struct ChartData: Identifiable {
+    let id = UUID()
+    let type: String
+    let cost: Double
+}
+
+// MARK: - Enum для вибору типу діаграми
+enum ChartType: String, CaseIterable, Identifiable {
+    case bar = "Стовпчаста (Сума)"
+    case pie = "Кругова (Частка)"
+    var id: String { self.rawValue }
+}
+
 struct TeacherStatisticsView: View {
     let teacher: Teacher
     
     @State private var selectedDate = Date()
+    @State private var selectedChartType: ChartType = .bar
     
     var titleDateString: String {
         let formatter = DateFormatter()
@@ -36,7 +51,6 @@ struct TeacherStatisticsView: View {
                 HStack {
                     Text("Період:")
                     Spacer()
-                    
                     MonthPicker(selectedDate: $selectedDate)
                 }
                 .padding(.horizontal)
@@ -53,40 +67,60 @@ struct TeacherStatisticsView: View {
                             .font(.headline)
                             .padding(.leading)
 
-                        LessonTypeChart(lessons: filteredLessons)
-                            .frame(height: 250)
-                            .padding()
+                        Picker("Тип діаграми", selection: $selectedChartType) {
+                            ForEach(ChartType.allCases) { type in
+                                Text(type.rawValue).tag(type)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal)
+
+                        // Відображення діаграми відповідно до обраного типу
+                        Group {
+                            if selectedChartType == .bar {
+                                LessonTypeBarChart(lessons: filteredLessons)
+                            } else {
+                                LessonTypePieChart(lessons: filteredLessons)
+                            }
+                        }
+                        .frame(height: 250)
+                        
+                        Divider()
                     }
                 } else {
-                    Text("Немає уроків за вибраний період.")
-                        .foregroundColor(.gray)
-                        .padding()
+                    ContentUnavailableView(
+                        "Немає даних",
+                        systemImage: "calendar.badge.exclamationmark",
+                        description: Text("Уроки за \(titleDateString) відсутні.")
+                    )
                 }
-
+                
                 LessonDetailedList(lessons: filteredLessons)
             }
+            .navigationTitle("\(teacher.name) - Статистика")
+            .navigationBarTitleDisplayMode(.inline)
         }
-        .navigationTitle("Статистика за \(titleDateString)")
     }
 }
 
+// MARK: - Підсумок Статистики
 struct StatisticsSummaryView: View {
     let lessons: [Lesson]
     
+    var totalHours: Double {
+        lessons.reduce(0.0) { $0 + $1.durationHours }
+    }
+    
     var totalUnpaid: Double {
-        lessons.filter { !$0.isPaid }.reduce(0) { $0 + $1.cost }
+        lessons.filter { !$0.isPaid }.reduce(0.0) { $0 + $1.cost }
     }
     
     var totalPaid: Double {
-        lessons.filter { $0.isPaid }.reduce(0) { $0 + $1.cost }
-    }
-    
-    var totalHours: Double {
-        lessons.reduce(0) { $0 + $1.durationHours }
+        lessons.filter { $0.isPaid }.reduce(0.0) { $0 + $1.cost }
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
+        VStack(alignment: .leading, spacing: 10) {
             Text("Місячний Підсумок")
                 .font(.title2)
                 .bold()
@@ -102,8 +136,9 @@ struct StatisticsSummaryView: View {
                 Image(systemName: "timer")
                 Text("Загальна кількість годин:")
                 Spacer()
-                Text("\(totalHours, specifier: "%.1f") год")
+                Text(totalHours, format: .number.precision(.fractionLength(1)))
                     .bold()
+                + Text(" год")
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
@@ -114,20 +149,16 @@ struct StatisticsSummaryView: View {
     }
 }
 
-struct LessonTypeChart: View {
+// MARK: - Діаграма (Стовпчаста)
+struct LessonTypeBarChart: View {
     let lessons: [Lesson]
     
     var data: [ChartData] {
-        let grouped = lessons.reduce(into: [String: Double]()) { result, lesson in
-            result[lesson.type.name, default: 0.0] += lesson.cost
+        var grouped: [String: Double] = [:]
+        for lesson in lessons {
+            grouped[lesson.type.name, default: 0] += lesson.cost
         }
         return grouped.map { ChartData(type: $0.key, cost: $0.value) }
-    }
-    
-    struct ChartData: Identifiable {
-        let id = UUID()
-        let type: String
-        let cost: Double
     }
     
     var body: some View {
@@ -149,7 +180,40 @@ struct LessonTypeChart: View {
     }
 }
 
+// MARK: - Діаграма (Кругова)
+struct LessonTypePieChart: View {
+    let lessons: [Lesson]
+    
+    var data: [ChartData] {
+        var grouped: [String: Double] = [:]
+        for lesson in lessons {
+            grouped[lesson.type.name, default: 0] += lesson.cost
+        }
+        return grouped.map { ChartData(type: $0.key, cost: $0.value) }
+    }
+    
+    var body: some View {
+        Chart(data) { item in
+            SectorMark(
+                angle: .value("Вартість", item.cost),
+                innerRadius: .ratio(0.618),
+                angularInset: 1.5
+            )
+            .cornerRadius(5)
+            .foregroundStyle(by: .value("Тип", item.type))
+            .annotation(position: .overlay) {
+                // Відсоток
+                Text("\(item.cost / data.reduce(0.0, { $0 + $1.cost }), format: .percent.precision(.fractionLength(1)))")
+                    .foregroundColor(.white)
+                    .font(.caption)
+            }
+        }
+        .chartLegend(position: .bottom, alignment: .center)
+        .padding()
+    }
+}
 
+// MARK: - Детальний Список
 struct LessonDetailedList: View {
     let lessons: [Lesson]
     

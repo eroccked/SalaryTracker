@@ -75,23 +75,10 @@ final class DataStore: ObservableObject {
                 }
             }
 
-            // Якщо типів немає, ініціалізуємо базові
             lessonTypes = [
                 LessonType(name: "ПКО", defaultRate: 450.0),
                 LessonType(name: "МКА", defaultRate: 330.0),
                 LessonType(name: "Школа", defaultRate: 220.0)
             ]
         }
-    
-
-//    func addSampleData() {
-//        let sampleLesson1 = Lesson(date: Date(), durationHours: 1.5, rateApplied: 300.0, type: "Індивідуальний", isPaid: false)
-//        let sampleLesson2 = Lesson(date: Date().addingTimeInterval(-86400), durationHours: 1.0, rateApplied: 400.0, type: "Підготовка до IELTS", isPaid: true)
-//        
-//        var teacher1 = Teacher(name: "Олена Петрівна", lessons: [sampleLesson1])
-//        var teacher2 = Teacher(name: "Іван Васильович", lessons: [sampleLesson2])
-//        
-//        teachers.append(teacher1)
-//        teachers.append(teacher2)
-//    }
 }
