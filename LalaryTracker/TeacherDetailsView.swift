@@ -27,7 +27,6 @@ struct TeacherDetailsView: View {
     
     var previousMonthName: String {
         let calendar = Calendar.current
-        // Отримання дати попереднього місяця
         guard let previousMonthDate = calendar.date(byAdding: .month, value: -1, to: Date()) else { return "попередній місяць" }
         
         let formatter = DateFormatter()
@@ -55,6 +54,26 @@ struct TeacherDetailsView: View {
     
     func deleteLesson(offsets: IndexSet) {
         teacher.lessons.remove(atOffsets: offsets)
+        dataStore.saveTeachers() // Зберігаємо після видалення
+    }
+    
+    func payPreviousMonthLessons() {
+        let calendar = Calendar.current
+        guard let previousMonthDate = calendar.date(byAdding: .month, value: -1, to: Date()) else { return }
+        let components = calendar.dateComponents([.year, .month], from: previousMonthDate)
+    
+        for i in teacher.lessons.indices {
+            let lesson = teacher.lessons[i]
+            let lessonComponents = calendar.dateComponents([.year, .month], from: lesson.date)
+            
+            let isPreviousMonth = lessonComponents.year == components.year && lessonComponents.month == components.month
+            
+            if isPreviousMonth && !lesson.isPaid {
+
+                teacher.lessons[i].isPaid = true
+            }
+        }
+        dataStore.saveTeachers()
     }
     
     // MARK: - Body
@@ -93,13 +112,31 @@ struct TeacherDetailsView: View {
                 .background(Color(.systemGray6))
                 .cornerRadius(10)
                 
-                HStack {
-                    Image(systemName: "calendar")
-                    Text("Неоплачено за \(previousMonthName):")
-                    Spacer()
-                    Text(totalUnpaidSalaryForPreviousMonth, format: .currency(code: "UAH"))
-                        .bold()
-                        .foregroundColor(totalUnpaidSalaryForPreviousMonth > 0 ? .orange : .secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "calendar")
+                        Text("Неоплачено за \(previousMonthName):")
+                        Spacer()
+                        Text(totalUnpaidSalaryForPreviousMonth, format: .currency(code: "UAH"))
+                            .bold()
+                            .foregroundColor(totalUnpaidSalaryForPreviousMonth > 0 ? .orange : .secondary)
+                    }
+                    .padding(.vertical, 4)
+                    
+                    if totalUnpaidSalaryForPreviousMonth > 0 {
+                        Button {
+                            payPreviousMonthLessons()
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Відмітити всі уроки за \(previousMonthName) як оплачені")
+                                    .fontWeight(.semibold)
+                                Spacer()
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.orange)
+                    }
                 }
                 .padding(8)
                 .background(Color(.systemGray6))
