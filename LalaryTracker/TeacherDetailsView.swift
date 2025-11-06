@@ -14,6 +14,9 @@ struct TeacherDetailsView: View {
     @State private var showingAddLessonSheet = false
     @State private var showingStatsSheet = false
     
+
+    @State private var showingConfirmationAlert = false
+    
     // MARK: - Обчислювальні Властивості
     
     var sortedLessons: [Lesson] {
@@ -56,12 +59,12 @@ struct TeacherDetailsView: View {
         teacher.lessons.remove(atOffsets: offsets)
         dataStore.saveTeachers() // Зберігаємо після видалення
     }
-    
+
     func payPreviousMonthLessons() {
         let calendar = Calendar.current
         guard let previousMonthDate = calendar.date(byAdding: .month, value: -1, to: Date()) else { return }
         let components = calendar.dateComponents([.year, .month], from: previousMonthDate)
-    
+        
         for i in teacher.lessons.indices {
             let lesson = teacher.lessons[i]
             let lessonComponents = calendar.dateComponents([.year, .month], from: lesson.date)
@@ -69,7 +72,6 @@ struct TeacherDetailsView: View {
             let isPreviousMonth = lessonComponents.year == components.year && lessonComponents.month == components.month
             
             if isPreviousMonth && !lesson.isPaid {
-
                 teacher.lessons[i].isPaid = true
             }
         }
@@ -125,7 +127,7 @@ struct TeacherDetailsView: View {
                     
                     if totalUnpaidSalaryForPreviousMonth > 0 {
                         Button {
-                            payPreviousMonthLessons()
+                            showingConfirmationAlert = true
                         } label: {
                             HStack {
                                 Spacer()
@@ -191,6 +193,15 @@ struct TeacherDetailsView: View {
         .sheet(isPresented: $showingStatsSheet) {
             TeacherStatisticsView(teacher: teacher)
                 .environmentObject(dataStore)
+        }
+        
+        .alert("Підтвердження Оплати", isPresented: $showingConfirmationAlert) {
+            Button("Оплатити", role: .destructive) {
+                payPreviousMonthLessons()
+            }
+            Button("Відмінити", role: .cancel) {}
+        } message: {
+            Text("Ви впевнені, що хочете відмітити ВСІ неоплачені уроки за \(previousMonthName) як оплачені? Цю дію не можна скасувати.")
         }
     }
 }
