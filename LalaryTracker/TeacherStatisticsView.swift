@@ -22,30 +22,80 @@ enum ChartType: String, CaseIterable, Identifiable {
     var id: String { self.rawValue }
 }
 
+// MARK: - Enum для вибору періоду
+enum PeriodType: String, CaseIterable, Identifiable {
+    case month = "Місяць"
+    case custom = "Довільний період"
+    var id: String { self.rawValue }
+}
+
 struct TeacherStatisticsView: View {
     let teacher: Teacher
     
     @State private var selectedDate = Date()
     @State private var selectedChartType: ChartType = .bar
+    @State private var periodType: PeriodType = .month
+    
+    @State private var startDate = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+    @State private var endDate = Date()
     
     var titleDateString: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "LLLL yyyy"
         formatter.locale = Locale(identifier: "uk_UA")
-        return formatter.string(from: selectedDate).capitalized
+        
+        if periodType == .month {
+            return formatter.string(from: selectedDate).capitalized
+        } else {
+            let shortFormatter = DateFormatter()
+            shortFormatter.dateFormat = "dd.MM.yy"
+            return "\(shortFormatter.string(from: startDate)) - \(shortFormatter.string(from: endDate))"
+        }
     }
     
     var filteredLessons: [Lesson] {
         let calendar = Calendar.current
-        let components = calendar.dateComponents([.year, .month], from: selectedDate)
         
-        return teacher.lessons.filter { lesson in
-            let lessonComponents = calendar.dateComponents([.year, .month], from: lesson.date)
-            return lessonComponents.year == components.year && lessonComponents.month == components.month
+        if periodType == .month {
+            let components = calendar.dateComponents([.year, .month], from: selectedDate)
+            
+            return teacher.lessons.filter { lesson in
+                let lessonComponents = calendar.dateComponents([.year, .month], from: lesson.date)
+                return lessonComponents.year == components.year && lessonComponents.month == components.month
+            }
+        } else {
+            return teacher.lessons.filter { lesson in
+                lesson.date >= startDate && lesson.date <= endDate
+            }
         }
     }
     
-    // Обчислення даних для діаграм
+    var filteredPayments: [Payment] {
+        let calendar = Calendar.current
+        
+        if periodType == .month {
+            let components = calendar.dateComponents([.year, .month], from: selectedDate)
+            
+            return teacher.payments.filter { payment in
+                let paymentComponents = calendar.dateComponents([.year, .month], from: payment.date)
+                return paymentComponents.year == components.year && paymentComponents.month == components.month
+            }
+        } else {
+            return teacher.payments.filter { payment in
+                payment.date >= startDate && payment.date <= endDate
+            }
+        }
+    }
+    
+    var totalPaidInPeriod: Double {
+        filteredPayments.reduce(0) { $0 + $1.amount }
+    }
+    
+    var balanceForPeriod: Double {
+        let earned = filteredLessons.reduce(0) { $0 + $1.cost }
+        return earned - totalPaidInPeriod
+    }
+    
     var chartData: [ChartData] {
         Dictionary(grouping: filteredLessons, by: { $0.type.name })
             .map { (key, lessons) in
@@ -57,11 +107,86 @@ struct TeacherStatisticsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                MonthPicker(selectedDate: $selectedDate)
-                    .padding(.horizontal)
                 
-                StatisticsSummaryView(lessons: filteredLessons)
+                // MARK: Вибір періоду
+                VStack(spacing: 12) {
+                    Picker("Тип періоду", selection: $periodType) {
+                        ForEach(PeriodType.allCases) { type in
+                            Text(type.rawValue).tag(type)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                     .padding(.horizontal)
+                    
+                    if periodType == .month {
+                        DatePicker("Місяць", selection: $selectedDate, displayedComponents: .date)
+                            .labelsHidden()
+                            .datePickerStyle(.compact)
+                            .padding(.horizontal)
+                    } else {
+                        VStack(spacing: 8) {
+                            HStack {
+                                Text("Від:")
+                                DatePicker("", selection: $startDate, displayedComponents: .date)
+                                    .labelsHidden()
+                            }
+                            HStack {
+                                Text("До:")
+                                DatePicker("", selection: $endDate, displayedComponents: .date)
+                                    .labelsHidden()
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+                
+                // MARK: Підсумок періоду
+                VStack(alignment: .leading, spacing: 15) {
+                    Text("Підсумок за період")
+                        .font(.title2)
+                        .bold()
+                        .padding(.horizontal)
+                    
+                    HStack {
+                        MetricCard(
+                            title: "Зароблено",
+                            value: filteredLessons.reduce(0) { $0 + $1.cost },
+                            unit: "UAH",
+                            color: .blue
+                        )
+                        
+                        MetricCard(
+                            title: "Виплачено",
+                            value: totalPaidInPeriod,
+                            unit: "UAH",
+                            color: .green
+                        )
+                    }
+                    .padding(.horizontal)
+                    
+                    HStack {
+                        MetricCard(
+                            title: "Баланс за період",
+                            value: balanceForPeriod,
+                            unit: "UAH",
+                            color: balanceForPeriod > 0 ? .red : .green
+                        )
+                    }
+                    .padding(.horizontal)
+                    
+                    HStack {
+                        Image(systemName: "timer")
+                        Text("Загальна кількість годин:")
+                        Spacer()
+                        Text("\(filteredLessons.reduce(0) { $0 + $1.durationHours }, specifier: "%.1f") год")
+                            .bold()
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(10)
+                    .padding(.horizontal)
+                }
                 
                 // MARK: Діаграма
                 if !chartData.isEmpty {
@@ -79,7 +204,6 @@ struct TeacherStatisticsView: View {
                         .pickerStyle(.segmented)
                         .padding(.horizontal)
                         
-                        // Діаграма
                         if selectedChartType == .bar {
                             LessonTypeBarChart(data: chartData)
                                 .frame(height: 250)
@@ -91,12 +215,35 @@ struct TeacherStatisticsView: View {
                         }
                     }
                 } else {
-                    ContentUnavailableView("Немає Даних", systemImage: "chart.bar.fill", description: Text("Немає уроків у вибраний місяць."))
+                    ContentUnavailableView(
+                        "Немає Даних",
+                        systemImage: "chart.bar.fill",
+                        description: Text("Немає уроків у вибраний період.")
+                    )
+                }
+                
+                // MARK: Деталізація
+                if !filteredPayments.isEmpty {
+                    VStack(alignment: .leading) {
+                        Text("Платежі (\(filteredPayments.count))")
+                            .font(.title2)
+                            .bold()
+                            .padding(.horizontal)
+                            .padding(.top)
+                        
+                        VStack(spacing: 0) {
+                            ForEach(filteredPayments.sorted(by: { $0.date > $1.date })) { payment in
+                                PaymentRow(payment: payment)
+                                    .padding(.horizontal)
+                                Divider()
+                            }
+                        }
+                    }
                 }
                 
                 LessonDetailedList(lessons: filteredLessons)
             }
-            .navigationTitle("Статистика \(titleDateString)")
+            .navigationTitle("Статистика: \(titleDateString)")
         }
     }
 }
