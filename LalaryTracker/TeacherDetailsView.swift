@@ -13,8 +13,6 @@ struct TeacherDetailsView: View {
     
     @State private var showingAddLessonSheet = false
     @State private var showingStatsSheet = false
-    
-
     @State private var showingConfirmationAlert = false
     
     // MARK: - Обчислювальні Властивості
@@ -55,11 +53,16 @@ struct TeacherDetailsView: View {
     
     // MARK: - Методи
     
-    func deleteLesson(offsets: IndexSet) {
-        teacher.lessons.remove(atOffsets: offsets)
-        dataStore.saveTeachers() // Зберігаємо після видалення
-    }
 
+    func deleteLesson(offsets: IndexSet) {
+
+        let lessonsToDelete = offsets.map { sortedLessons[$0].id }
+        
+        teacher.lessons.removeAll { lessonsToDelete.contains($0.id) }
+        
+        dataStore.saveTeachers()
+    }
+    
     func payPreviousMonthLessons() {
         let calendar = Calendar.current
         guard let previousMonthDate = calendar.date(byAdding: .month, value: -1, to: Date()) else { return }
@@ -68,7 +71,6 @@ struct TeacherDetailsView: View {
         for i in teacher.lessons.indices {
             let lesson = teacher.lessons[i]
             let lessonComponents = calendar.dateComponents([.year, .month], from: lesson.date)
-            
             let isPreviousMonth = lessonComponents.year == components.year && lessonComponents.month == components.month
             
             if isPreviousMonth && !lesson.isPaid {
@@ -153,9 +155,9 @@ struct TeacherDetailsView: View {
                                            description: Text("Додайте перший урок, натиснувши '+' у верхньому куті."))
                 }
                 
+                // Ми ітеруємо `sortedLessons`
                 ForEach(sortedLessons) { lesson in
                     if let index = teacher.lessons.firstIndex(where: { $0.id == lesson.id }) {
-                        
                         NavigationLink {
                             EditLessonView(lesson: $teacher.lessons[index])
                                 .environmentObject(dataStore)
