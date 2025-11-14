@@ -18,7 +18,6 @@ struct AddLessonView: View {
     @State private var rateApplied: Double = 450
     
     @State private var selectedLessonType: LessonType? = nil
-    @State private var isPaid: Bool = false
     
     let availableHours = Array(1...10)
     
@@ -31,11 +30,13 @@ struct AddLessonView: View {
         let newLesson = Lesson(
             date: lessonDate,
             durationHours: Double(durationHours),
-            type: finalLessonType, rateApplied: rateApplied,
-            isPaid: isPaid
+            type: finalLessonType,
+            rateApplied: rateApplied
         )
         
         teacherLessons.append(newLesson)
+        
+        dataStore.saveTeachers()
         
         dismiss()
     }
@@ -51,11 +52,10 @@ struct AddLessonView: View {
                             Text("\(hour) год")
                         }
                     }
-                    .pickerStyle(.wheel)
-
+                    
                     Picker("Тип Уроку", selection: $selectedLessonType) {
                         Text("Оберіть тип").tag(nil as LessonType?)
-                        ForEach(dataStore.lessonTypes) { type in
+                        ForEach(dataStore.lessonTypes, id: \.self) { type in
                             Text(type.name).tag(type as LessonType?)
                         }
                     }
@@ -69,9 +69,6 @@ struct AddLessonView: View {
                     }
                 }
                 
-                Section("Статус Оплати") {
-                    Toggle("Урок оплачено?", isOn: $isPaid)
-                }
                 
                 Section {
                     Button("Зберегти Урок") {
@@ -88,7 +85,7 @@ struct AddLessonView: View {
                     }
                 }
             }
-            .onChange(of: selectedLessonType) { (newType: LessonType?) in
+            .onChange(of: selectedLessonType) { _, newType in
                 if let type = newType {
                     rateApplied = type.defaultRate
                 }

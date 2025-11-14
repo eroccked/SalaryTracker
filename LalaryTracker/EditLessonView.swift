@@ -1,3 +1,10 @@
+//
+//  EditLessonView.swift
+//  LalaryTracker
+//
+//  Created by Taras Buhra on 06.11.2025.
+//
+
 import SwiftUI
 
 struct EditLessonView: View {
@@ -9,7 +16,6 @@ struct EditLessonView: View {
     @State private var durationHours: Int
     @State private var rateApplied: Double
     @State private var selectedLessonType: LessonType
-    @State private var isPaid: Bool
     
     let availableHours = Array(1...10)
     
@@ -22,7 +28,6 @@ struct EditLessonView: View {
         
         self._rateApplied = State(initialValue: lesson.wrappedValue.rateApplied)
         self._selectedLessonType = State(initialValue: lesson.wrappedValue.type)
-        self._isPaid = State(initialValue: lesson.wrappedValue.isPaid)
     }
     
     func saveChanges() {
@@ -30,7 +35,7 @@ struct EditLessonView: View {
         lesson.durationHours = Double(durationHours)
         lesson.rateApplied = rateApplied
         lesson.type = selectedLessonType
-        lesson.isPaid = isPaid
+        dataStore.saveTeachers()
         
         dismiss()
     }
@@ -46,14 +51,13 @@ struct EditLessonView: View {
                             Text("\(hour) год")
                         }
                     }
-                    .pickerStyle(.wheel)
-
+                    
                     Picker("Тип Уроку", selection: $selectedLessonType) {
-
-                        ForEach(dataStore.lessonTypes) { type in
+                        ForEach(dataStore.lessonTypes, id: \.self) { type in
                             Text(type.name).tag(type)
                         }
                     }
+                    
                     HStack {
                         Text("Ставка за годину (грн)")
                         Spacer()
@@ -70,9 +74,7 @@ struct EditLessonView: View {
                     }
                 }
                 
-                Section("Статус Оплати") {
-                    Toggle("Урок оплачено?", isOn: $isPaid)
-                }
+                
                 
                 Section {
                     Button("Зберегти Зміни") {
@@ -88,8 +90,8 @@ struct EditLessonView: View {
                     }
                 }
             }
-            .onChange(of: selectedLessonType) { (newType: LessonType) in
-                if newType.defaultRate != rateApplied {
+            .onChange(of: selectedLessonType) { _, newType in
+                if newType.defaultRate != lesson.type.defaultRate {
                     rateApplied = newType.defaultRate
                 }
             }

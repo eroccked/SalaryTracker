@@ -14,35 +14,26 @@ struct LessonRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading) {
-                // Дата уроку
                 Text(lesson.date, style: .date)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                
-                // Тип та тривалість уроку
+
                 Text(lesson.type.name)
                     .bold()
-                + Text(" (\(lesson.durationHours, format: .number.precision(.fractionLength(1))) год)")
-                    .font(.callout)            }
+                + Text(" (\(lesson.durationHours, specifier: "%.1f") год)")
+                    .font(.callout)
+            }
             
             Spacer()
             
             VStack(alignment: .trailing) {
-                // Застосована ставка
-                HStack(spacing: 0) {
-                    Text("Ставка: ")
-                        .font(.caption)
-                    Text(lesson.rateApplied, format: .number.precision(.fractionLength(2)))
-                        .font(.caption)
-                }
+                Text("Ставка: \(lesson.rateApplied, specifier: "%.2f")")
+                    .font(.caption)
                 
-                // Вартість уроку
                 Text(lesson.cost, format: .currency(code: "UAH"))
-                    .foregroundColor(lesson.isPaid ? .green : .red)
+                    .foregroundColor(.blue)
                     .bold()
-                
-                Text(lesson.isPaid ? "✅ Оплачено" : "❌ Не оплачено")
-                    .font(.caption2)
+
             }
         }
     }
@@ -76,5 +67,118 @@ struct MetricCard: View {
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 5)
+    }
+}
+
+// MARK: - MonthPicker
+struct MonthPicker: View {
+    @Binding var selectedDate: Date
+    
+    var body: some View {
+        DatePicker("Період", selection: $selectedDate, displayedComponents: .date)
+            .labelsHidden()
+            .datePickerStyle(.compact)
+    }
+}
+
+// MARK: - StatisticsSummaryView
+struct StatisticsSummaryView: View {
+    let lessons: [Lesson]
+    
+    var totalCost: Double {
+        lessons.reduce(0) { $0 + $1.cost }
+    }
+    
+    var totalHours: Double {
+        lessons.reduce(0) { $0 + $1.durationHours }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            Text("Місячний Підсумок")
+                .font(.title2)
+                .bold()
+                .padding(.horizontal)
+            
+            HStack {
+                MetricCard(title: "Загалом Зароблено", value: totalCost, unit: "UAH", color: .blue)
+            }
+            .padding(.horizontal)
+            
+            HStack {
+                Image(systemName: "timer")
+                Text("Загальна кількість годин:")
+                Spacer()
+                Text("\(totalHours, specifier: "%.1f") год")
+                    .bold()
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color(.systemGray6))
+            .cornerRadius(10)
+            .padding(.horizontal)
+        }
+    }
+}
+
+// MARK: - LessonDetailedList
+struct LessonDetailedList: View {
+    let lessons: [Lesson]
+    
+    var sortedLessons: [Lesson] {
+        lessons.sorted(by: { $0.date > $1.date })
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text("Деталізація Уроків (\(lessons.count))")
+                .font(.title2)
+                .bold()
+                .padding(.horizontal)
+                .padding(.top)
+
+            VStack(spacing: 0) {
+                ForEach(sortedLessons) { lesson in
+                    LessonRow(lesson: lesson)
+                        .padding(.horizontal)
+                    Divider()
+                }
+            }
+        }
+    }
+}
+// MARK: - PaymentRow
+struct PaymentRow: View {
+    let payment: Payment
+    
+    var body: some View {
+        HStack {
+            Image(systemName: payment.type.icon)
+                .foregroundColor(.green)
+            
+            VStack(alignment: .leading) {
+                Text(payment.date, style: .date)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
+                Text(payment.note.isEmpty ? payment.type.rawValue : payment.note)
+                    .bold()
+                    .lineLimit(1)
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing) {
+                Text("ПЛАТІЖ")
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(.gray)
+                
+                Text(payment.amount, format: .currency(code: "UAH"))
+                    .font(.callout)
+                    .foregroundColor(.green)
+                    .bold()
+            }
+        }
     }
 }

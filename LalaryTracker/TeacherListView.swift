@@ -1,8 +1,8 @@
 //
-//  TeacherListView.swift
-//  LalaryTracker
+//  TeacherListView.swift
+//  LalaryTracker
 //
-//  Created by Taras Buhra on 30.10.2025.
+//  Created by Taras Buhra on 30.10.2025.
 //
 
 import SwiftUI
@@ -56,7 +56,7 @@ struct TeachersListView: View {
                     Button {
                         showingUnpaidLessonsSheet = true
                     } label: {
-                        Label("Неоплачені", systemImage: "banknote.fill")
+                        Label("Баланс", systemImage: "banknote.fill")
                     }
                 }
                 
@@ -111,24 +111,25 @@ struct TeacherRow: View {
             }
             
             Spacer()
-
+            let balance = teacher.currentBalance
+            let isOwed = balance > 0
             VStack(alignment: .trailing) {
-                Text("ДО СПЛАТИ")
+                Text("БАЛАНС")
                     .font(.caption2)
                     .fontWeight(.medium)
                     .foregroundColor(.gray)
                 
                 
-                Text(teacher.totalUnpaidSalary, format: .currency(code: "UAH"))
+                Text(balance, format: .currency(code: "UAH"))
                     .font(.title3)
                     .fontWeight(.bold)
-                    .foregroundColor(teacher.totalUnpaidSalary > 0 ? .red : .green)
+                    .foregroundColor(isOwed ? .red : .green)
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(teacher.totalUnpaidSalary > 0 ? Color.red.opacity(0.1) : Color.green.opacity(0.1))
+                    .fill(isOwed ? Color.red.opacity(0.1) : Color.green.opacity(0.1))
             )
         }
         .padding(.vertical, 4)
