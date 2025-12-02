@@ -4,7 +4,6 @@
 //
 //  Created by Taras Buhra on 30.10.2025.
 //
-
 import SwiftUI
 
 struct TeachersListView: View {
@@ -91,9 +90,25 @@ struct TeachersListView: View {
 struct TeacherRow: View {
     let teacher: Teacher
     
+    var currentMonthBalance: Double {
+        let now = Date()
+        let earned = teacher.totalEarned(for: now)
+        let paid = teacher.totalPayments(for: now)
+        return earned - paid
+    }
+    
+    var currentMonthString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "LLLL"
+        formatter.locale = Locale(identifier: "uk_UA")
+        return formatter.string(from: Date()).capitalized
+    }
+    
     var body: some View {
-        HStack(alignment: .center) {
-            
+        let balance = currentMonthBalance
+        let isOwed = balance > 0
+        
+        return HStack(alignment: .center) {
             
             Image(systemName: "person.circle.fill")
                 .resizable()
@@ -111,14 +126,12 @@ struct TeacherRow: View {
             }
             
             Spacer()
-            let balance = teacher.currentBalance
-            let isOwed = balance > 0
+            
             VStack(alignment: .trailing) {
-                Text("БАЛАНС")
+                Text(currentMonthString.uppercased())
                     .font(.caption2)
                     .fontWeight(.medium)
                     .foregroundColor(.gray)
-                
                 
                 Text(balance, format: .currency(code: "UAH"))
                     .font(.title3)

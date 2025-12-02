@@ -4,7 +4,6 @@
 //
 //  Created by Taras Buhra on 30.10.2025.
 //
-
 import SwiftUI
 
 struct TeacherDetailsView: View {
@@ -25,8 +24,16 @@ struct TeacherDetailsView: View {
     var sortedPayments: [Payment] {
         teacher.payments.sorted(by: { $0.date > $1.date })
     }
+    var filteredPayments: [Payment] {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month], from: selectedDate)
+        
+        return teacher.payments.filter { payment in
+            let paymentComponents = calendar.dateComponents([.year, .month], from: payment.date)
+            return paymentComponents.year == components.year && paymentComponents.month == components.month
+        }.sorted(by: { $0.date > $1.date })
+    }
     
-    // Місячні дані
     var monthlyEarned: Double {
         teacher.totalEarned(for: selectedDate)
     }
@@ -55,7 +62,7 @@ struct TeacherDetailsView: View {
     }
     
     func deletePayment(offsets: IndexSet) {
-        let paymentsToDelete = offsets.map { sortedPayments[$0].id }
+        let paymentsToDelete = offsets.map { filteredPayments[$0].id }
         teacher.payments.removeAll { paymentsToDelete.contains($0.id) }
         dataStore.saveTeachers()
     }
@@ -164,12 +171,12 @@ struct TeacherDetailsView: View {
             }
             
             // MARK: Платежі
-            Section("Платежі (\(teacher.payments.count))") {
-                if teacher.payments.isEmpty {
-                    Text("Платежів ще немає.")
+            Section("Платежі за \(monthString) (\(filteredPayments.count))") {
+                if filteredPayments.isEmpty {
+                    Text("Платежів у цей місяць немає.")
                         .foregroundColor(.gray)
                 } else {
-                    ForEach(sortedPayments) { payment in
+                    ForEach(filteredPayments) { payment in
                         if let index = teacher.payments.firstIndex(where: { $0.id == payment.id }) {
                             NavigationLink {
                                 EditPaymentView(payment: $teacher.payments[index])
