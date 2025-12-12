@@ -3,6 +3,7 @@
 //  LalaryTracker
 //
 //  Created by Taras Buhra on 31.10.2025.
+//  Updated with new design
 //
 
 import SwiftUI
@@ -17,15 +18,15 @@ struct ChartData: Identifiable {
 
 // MARK: - Enum для вибору типу діаграми
 enum ChartType: String, CaseIterable, Identifiable {
-    case bar = "Стовпчаста (Сума)"
-    case pie = "Кругова (Частка)"
+    case bar = "Стовпчаста"
+    case pie = "Кругова"
     var id: String { self.rawValue }
 }
 
 // MARK: - Enum для вибору періоду
 enum PeriodType: String, CaseIterable, Identifiable {
     case month = "Місяць"
-    case custom = "Довільний період"
+    case custom = "Довільний"
     var id: String { self.rawValue }
 }
 
@@ -105,145 +106,195 @@ struct TeacherStatisticsView: View {
     }
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
+        NavigationStack {
+            ZStack {
+                // Gradient Background
+                LinearGradient(
+                    colors: [
+                        Color(hex: "B8E6E1"),
+                        Color(hex: "A8DDD8"),
+                        Color(hex: "B8E6E1")
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
                 
-                // MARK: Вибір періоду
-                VStack(spacing: 12) {
-                    Picker("Тип періоду", selection: $periodType) {
-                        ForEach(PeriodType.allCases) { type in
-                            Text(type.rawValue).tag(type)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal)
-                    
-                    if periodType == .month {
-                        DatePicker("Місяць", selection: $selectedDate, displayedComponents: .date)
-                            .labelsHidden()
-                            .datePickerStyle(.compact)
+                ScrollView {
+                    VStack(spacing: 20) {
+                        
+                        // MARK: Вибір періоду
+                        VStack(spacing: 12) {
+                            Picker("Тип періоду", selection: $periodType) {
+                                ForEach(PeriodType.allCases) { type in
+                                    Text(type.rawValue).tag(type)
+                                }
+                            }
+                            .pickerStyle(.segmented)
                             .padding(.horizontal)
-                    } else {
-                        VStack(spacing: 8) {
-                            HStack {
-                                Text("Від:")
-                                DatePicker("", selection: $startDate, displayedComponents: .date)
+                            
+                            if periodType == .month {
+                                DatePicker("Місяць", selection: $selectedDate, displayedComponents: .date)
                                     .labelsHidden()
-                            }
-                            HStack {
-                                Text("До:")
-                                DatePicker("", selection: $endDate, displayedComponents: .date)
-                                    .labelsHidden()
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                }
-                
-                // MARK: Підсумок періоду
-                VStack(alignment: .leading, spacing: 15) {
-                    Text("Підсумок за період")
-                        .font(.title2)
-                        .bold()
-                        .padding(.horizontal)
-                    
-                    HStack {
-                        MetricCard(
-                            title: "Зароблено",
-                            value: filteredLessons.reduce(0) { $0 + $1.cost },
-                            unit: "UAH",
-                            color: .blue
-                        )
-                        
-                        MetricCard(
-                            title: "Виплачено",
-                            value: totalPaidInPeriod,
-                            unit: "UAH",
-                            color: .green
-                        )
-                    }
-                    .padding(.horizontal)
-                    
-                    HStack {
-                        MetricCard(
-                            title: "Баланс за період",
-                            value: balanceForPeriod,
-                            unit: "UAH",
-                            color: balanceForPeriod > 0 ? .red : .green
-                        )
-                    }
-                    .padding(.horizontal)
-                    
-                    HStack {
-                        Image(systemName: "timer")
-                        Text("Загальна кількість годин:")
-                        Spacer()
-                        Text("\(filteredLessons.reduce(0) { $0 + $1.durationHours }, specifier: "%.1f") год")
-                            .bold()
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
-                    .padding(.horizontal)
-                }
-                
-                // MARK: Діаграма
-                if !chartData.isEmpty {
-                    VStack(alignment: .leading) {
-                        Text("Розподіл за типом уроків")
-                            .font(.title2)
-                            .bold()
-                            .padding(.horizontal)
-                        
-                        Picker("Тип діаграми", selection: $selectedChartType) {
-                            ForEach(ChartType.allCases) { type in
-                                Text(type.rawValue).tag(type)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal)
-                        
-                        if selectedChartType == .bar {
-                            LessonTypeBarChart(data: chartData)
-                                .frame(height: 250)
-                                .padding()
-                        } else {
-                            LessonTypePieChart(data: chartData)
-                                .frame(height: 300)
-                                .padding()
-                        }
-                    }
-                } else {
-                    ContentUnavailableView(
-                        "Немає Даних",
-                        systemImage: "chart.bar.fill",
-                        description: Text("Немає уроків у вибраний період.")
-                    )
-                }
-                
-                // MARK: Деталізація
-                if !filteredPayments.isEmpty {
-                    VStack(alignment: .leading) {
-                        Text("Платежі (\(filteredPayments.count))")
-                            .font(.title2)
-                            .bold()
-                            .padding(.horizontal)
-                            .padding(.top)
-                        
-                        VStack(spacing: 0) {
-                            ForEach(filteredPayments.sorted(by: { $0.date > $1.date })) { payment in
-                                PaymentRow(payment: payment)
+                                    .datePickerStyle(.compact)
+                                    .tint(.accentGreen)
                                     .padding(.horizontal)
-                                Divider()
+                            } else {
+                                VStack(spacing: 8) {
+                                    HStack {
+                                        Text("Від:")
+                                            .foregroundColor(.textSecondary)
+                                        DatePicker("", selection: $startDate, displayedComponents: .date)
+                                            .labelsHidden()
+                                            .tint(.accentGreen)
+                                    }
+                                    HStack {
+                                        Text("До:")
+                                            .foregroundColor(.textSecondary)
+                                        DatePicker("", selection: $endDate, displayedComponents: .date)
+                                            .labelsHidden()
+                                            .tint(.accentGreen)
+                                    }
+                                }
+                                .padding()
+                                .background(Color.cardBackground)
+                                .cornerRadius(12)
+                                .padding(.horizontal)
                             }
                         }
+                        .padding(.top, 10)
+                        
+                        // MARK: Підсумок періоду
+                        VStack(alignment: .leading, spacing: 15) {
+                            Text("Підсумок за період")
+                                .font(.title3)
+                                .bold()
+                                .foregroundColor(.textPrimary)
+                                .padding(.horizontal)
+                            
+                            HStack(spacing: 12) {
+                                MetricCard(
+                                    title: "Зароблено",
+                                    value: filteredLessons.reduce(0) { $0 + $1.cost },
+                                    unit: "UAH",
+                                    color: .textPrimary,
+                                    icon: "arrow.up.circle.fill"
+                                )
+                                
+                                MetricCard(
+                                    title: "Виплачено",
+                                    value: totalPaidInPeriod,
+                                    unit: "UAH",
+                                    color: .accentGreen,
+                                    icon: "checkmark.circle.fill"
+                                )
+                            }
+                            .padding(.horizontal)
+                            
+                            HStack {
+                                MetricCard(
+                                    title: "Баланс за період",
+                                    value: balanceForPeriod,
+                                    unit: "UAH",
+                                    color: balanceForPeriod > 0 ? .softRed : .accentGreen,
+                                    icon: "chart.line.uptrend.xyaxis"
+                                )
+                            }
+                            .padding(.horizontal)
+                            
+                            HStack(spacing: 12) {
+                                Image(systemName: "timer")
+                                    .foregroundColor(.accentGreen)
+                                Text("Загальна кількість годин:")
+                                    .foregroundColor(.textSecondary)
+                                Spacer()
+                                Text("\(filteredLessons.reduce(0) { $0 + $1.durationHours }, specifier: "%.1f") год")
+                                    .bold()
+                                    .foregroundColor(.textPrimary)
+                            }
+                            .padding()
+                            .background(Color.cardBackground)
+                            .cornerRadius(12)
+                            .padding(.horizontal)
+                        }
+                        
+                        // MARK: Діаграма
+                        if !chartData.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Розподіл за типом уроків")
+                                    .font(.title3)
+                                    .bold()
+                                    .foregroundColor(.textPrimary)
+                                    .padding(.horizontal)
+                                
+                                Picker("Тип діаграми", selection: $selectedChartType) {
+                                    ForEach(ChartType.allCases) { type in
+                                        Text(type.rawValue).tag(type)
+                                    }
+                                }
+                                .pickerStyle(.segmented)
+                                .padding(.horizontal)
+                                
+                                if selectedChartType == .bar {
+                                    LessonTypeBarChart(data: chartData)
+                                        .frame(height: 250)
+                                        .padding()
+                                        .background(Color.cardBackground)
+                                        .cornerRadius(15)
+                                        .padding(.horizontal)
+                                } else {
+                                    LessonTypePieChart(data: chartData)
+                                        .frame(height: 300)
+                                        .padding()
+                                        .background(Color.cardBackground)
+                                        .cornerRadius(15)
+                                        .padding(.horizontal)
+                                }
+                            }
+                        } else {
+                            VStack(spacing: 20) {
+                                Image(systemName: "chart.bar.fill")
+                                    .font(.system(size: 50))
+                                    .foregroundColor(.textSecondary)
+                                
+                                Text("Немає Даних")
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.textPrimary)
+                                
+                                Text("Немає уроків у вибраний період")
+                                    .font(.subheadline)
+                                    .foregroundColor(.textSecondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 40)
+                        }
+                        
+                        // MARK: Деталізація платежів
+                        if !filteredPayments.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Платежі (\(filteredPayments.count))")
+                                    .font(.title3)
+                                    .bold()
+                                    .foregroundColor(.textPrimary)
+                                    .padding(.horizontal)
+                                
+                                ForEach(filteredPayments.sorted(by: { $0.date > $1.date })) { payment in
+                                    PaymentRow(payment: payment)
+                                        .padding(.horizontal)
+                                }
+                            }
+                        }
+                        
+                        // MARK: Деталізація уроків
+                        LessonDetailedList(lessons: filteredLessons)
                     }
+                    .padding(.bottom, 30)
                 }
-                
-                LessonDetailedList(lessons: filteredLessons)
             }
-            .navigationTitle("Статистика: \(titleDateString)")
+            .navigationTitle("Статистика")
+            .navigationBarTitleDisplayMode(.inline)
+            .tint(.textPrimary)
         }
     }
 }
@@ -259,13 +310,31 @@ struct LessonTypeBarChart: View {
                 x: .value("Тип", item.type),
                 y: .value("Сума, UAH", item.cost)
             )
-            .annotation(position: .overlay, alignment: .top) {
+            .foregroundStyle(Color.accentGreen.gradient)
+            .cornerRadius(8)
+            .annotation(position: .top, alignment: .center) {
                 Text(item.cost, format: .currency(code: "UAH"))
                     .font(.caption2)
-                    .foregroundColor(.white)
+                    .foregroundColor(.textPrimary)
+                    .padding(4)
+                    .background(Color.cardBackground.opacity(0.8))
+                    .cornerRadius(4)
             }
         }
-        .chartForegroundStyleScale(domain: data.map { $0.type })
+        .chartXAxis {
+            AxisMarks(position: .bottom) { value in
+                AxisValueLabel()
+                    .foregroundStyle(Color.textSecondary)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading) { value in
+                AxisGridLine()
+                    .foregroundStyle(Color.textSecondary.opacity(0.2))
+                AxisValueLabel()
+                    .foregroundStyle(Color.textSecondary)
+            }
+        }
     }
 }
 
@@ -280,18 +349,33 @@ struct LessonTypePieChart: View {
         Chart(data) { item in
             SectorMark(
                 angle: .value("Сума", item.cost),
-                innerRadius: 50,
-                outerRadius: 120,
-                angularInset: 1.0
+                innerRadius: .ratio(0.5),
+                outerRadius: .ratio(0.9),
+                angularInset: 2.0
             )
             .cornerRadius(5)
             .foregroundStyle(by: .value("Тип", item.type))
             .annotation(position: .overlay) {
-                Text("\((item.cost / totalCost), format: .percent.precision(.fractionLength(1)))")
-                    .font(.caption)
-                    .bold()
+                if item.cost / totalCost > 0.1 {
+                    Text("\((item.cost / totalCost), format: .percent.precision(.fractionLength(0)))")
+                        .font(.caption)
+                        .bold()
+                        .foregroundColor(.white)
+                }
             }
         }
+        .chartForegroundStyleScale([
+            data[safe: 0]?.type ?? "": Color.accentGreen,
+            data[safe: 1]?.type ?? "": Color.warmBrown,
+            data[safe: 2]?.type ?? "": Color.textSecondary
+        ])
         .chartLegend(position: .bottom, alignment: .center)
+    }
+}
+
+// Helper extension for safe array access
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

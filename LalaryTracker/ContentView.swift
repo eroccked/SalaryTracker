@@ -4,7 +4,6 @@
 //
 //  Created by Taras Buhra on 30.10.2025.
 //
-
 import SwiftUI
 
 struct ContentView: View {
@@ -20,5 +19,6 @@ struct ContentView: View {
                     Label("Транзакції", systemImage: "banknote.fill")
                 }
         }
+        .tint(.accentGreen)
     }
 }
