@@ -43,118 +43,71 @@ struct UnpaidLessonsView: View {
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                // Gradient Background
-                LinearGradient(
-                    colors: [
-                        Color(hex: "B8E6E1"),
-                        Color(hex: "A8DDD8"),
-                        Color(hex: "B8E6E1")
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+            VStack(spacing: 0) {
+                // Date Picker Header
+                HStack {
+                    Text("Період:")
+                        .font(.headline)
+                    Spacer()
+                    DatePicker("", selection: $selectedDate, displayedComponents: .date)
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
+                }
+                .padding()
+                .background(Color(.systemGray6))
                 
-                VStack(spacing: 0) {
-                    // Date Picker Header
-                    HStack {
-                        Text("Період:")
-                            .font(.headline)
-                            .foregroundColor(.textPrimary)
-                        Spacer()
-                        MonthPicker(selectedDate: $selectedDate)
+                // Summary Section
+                if !lessonsForSelectedMonth.isEmpty {
+                    VStack(spacing: 12) {
+                        HStack {
+                            Text("Всього зароблено:")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text(totalEarnedForMonth, format: .currency(code: "UAH"))
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(.green)
+                        }
+                        
+                        HStack {
+                            Image(systemName: "timer")
+                            Text("Загальна кількість годин:")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text("\(totalHoursForMonth, specifier: "%.1f") год")
+                                .bold()
+                        }
                     }
                     .padding()
-                    .background(Color.cardBackground)
-                    
-                    // Summary Section
-                    if !lessonsForSelectedMonth.isEmpty {
-                        VStack(spacing: 15) {
-                            HStack(spacing: 12) {
-                                MetricCard(
-                                    title: "Всього зароблено",
-                                    value: totalEarnedForMonth,
-                                    unit: "UAH",
-                                    color: .accentGreen,
-                                    icon: "banknote.fill"
-                                )
-                            }
-                            
-                            HStack(spacing: 12) {
-                                Image(systemName: "timer")
-                                    .foregroundColor(.accentGreen)
-                                Text("Загальна кількість годин:")
-                                    .foregroundColor(.textSecondary)
-                                Spacer()
-                                Text("\(totalHoursForMonth, specifier: "%.1f") год")
-                                    .bold()
-                                    .foregroundColor(.textPrimary)
-                            }
-                            .padding()
-                            .background(Color.cardBackground)
-                            .cornerRadius(12)
-                        }
-                        .padding()
-                        .background(Color.white.opacity(0.3))
-                    }
-                    
-                    // Lessons List
-                    ScrollView {
-                        if lessonsForSelectedMonth.isEmpty {
-                            VStack(spacing: 20) {
-                                Spacer()
-                                    .frame(height: 100)
-                                
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(.accentGreen)
-                                
-                                Text("Немає Уроків")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.textPrimary)
-                                
-                                Text("Уроки за \(titleDateString) відсутні")
-                                    .font(.subheadline)
-                                    .foregroundColor(.textSecondary)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 40)
-                            }
-                        } else {
-                            VStack(spacing: 12) {
-                                ForEach(lessonsForSelectedMonth) { lesson in
-                                    if let teacherIndex = dataStore.teachers.firstIndex(where: { $0.lessons.contains(where: { $0.id == lesson.id }) }) {
-                                        VStack(spacing: 0) {
-                                            // Teacher name badge
-                                            HStack {
-                                                Image(systemName: "person.fill")
-                                                    .font(.caption)
-                                                    .foregroundColor(.textSecondary)
-                                                Text(dataStore.teachers[teacherIndex].name)
-                                                    .font(.caption)
-                                                    .fontWeight(.medium)
-                                                    .foregroundColor(.textSecondary)
-                                                Spacer()
-                                            }
-                                            .padding(.horizontal)
-                                            .padding(.top, 8)
-                                            
-                                            LessonRow(lesson: lesson)
-                                                .padding(.horizontal)
-                                                .padding(.bottom, 8)
-                                        }
-                                    }
+                    .background(Color(.systemGray6))
+                }
+                
+                Divider()
+                
+                // Lessons List
+                if lessonsForSelectedMonth.isEmpty {
+                    ContentUnavailableView(
+                        "Немає Уроків",
+                        systemImage: "checkmark.circle.fill",
+                        description: Text("Уроки за \(titleDateString) відсутні.")
+                    )
+                } else {
+                    List {
+                        ForEach(lessonsForSelectedMonth) { lesson in
+                            if let teacherIndex = dataStore.teachers.firstIndex(where: { $0.lessons.contains(where: { $0.id == lesson.id }) }) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(dataStore.teachers[teacherIndex].name)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    LessonRow(lesson: lesson)
                                 }
                             }
-                            .padding(.top, 20)
-                            .padding(.bottom, 30)
                         }
                     }
                 }
             }
             .navigationTitle("Уроки за місяць")
-            .tint(.textPrimary)
         }
     }
 }

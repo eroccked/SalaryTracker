@@ -4,6 +4,7 @@
 //
 //  Created by Taras Buhra on 30.10.2025.
 //
+
 import SwiftUI
 
 struct TeachersListView: View {
@@ -13,104 +14,49 @@ struct TeachersListView: View {
     @State private var showingTypeManagerSheet = false
     @State private var showingAddTeacherSheet = false
     @State private var showingUnpaidLessonsSheet = false
-    @State private var teacherToDelete: Teacher?
-    @State private var showingDeleteAlert = false
+    
+    func deleteTeacher(offsets: IndexSet) {
+        dataStore.teachers.remove(atOffsets: offsets)
+    }
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                // Gradient Background like the reference
-                LinearGradient(
-                    colors: [
-                        Color(hex: "B8E6E1"),
-                        Color(hex: "A8DDD8"),
-                        Color(hex: "B8E6E1")
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+            
+            List {
+                if dataStore.teachers.isEmpty {
+                    ContentUnavailableView("Немає викладачів",
+                                           systemImage: "person.3.fill",
+                                           description: Text("Натисніть '+' для додавання нового профілю."))
+                }
                 
-                ScrollView {
-                    VStack(spacing: 20) {
-                        if dataStore.teachers.isEmpty {
-                            VStack(spacing: 20) {
-                                Spacer()
-                                    .frame(height: 100)
-                                
-                                Image(systemName: "person.3.fill")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(.textSecondary)
-                                
-                                Text("Немає викладачів")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.textPrimary)
-                                
-                                Text("Натисніть '+' для додавання нового профілю")
-                                    .font(.subheadline)
-                                    .foregroundColor(.textSecondary)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 40)
-                            }
-                        } else {
-                            ForEach(dataStore.teachers) { teacher in
-                                NavigationLink {
-                                    if let index = dataStore.teachers.firstIndex(where: { $0.id == teacher.id }) {
-                                        TeacherDetailsView(teacher: $dataStore.teachers[index])
-                                            .environmentObject(dataStore)
-                                    }
-                                } label: {
-                                    TeacherRow(teacher: teacher)
-                                        .padding(.horizontal)
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        teacherToDelete = teacher
-                                        showingDeleteAlert = true
-                                    } label: {
-                                        Label("Видалити викладача", systemImage: "trash.fill")
-                                    }
-                                }
-                            }
-                        }
+                ForEach($dataStore.teachers) { $teacher in
+                    
+                    NavigationLink {
+                        TeacherDetailsView(teacher: $teacher)
+                            .environmentObject(dataStore)
+                    } label: {
+                        TeacherRow(teacher: teacher)
                     }
-                    .padding(.top, 20)
                 }
+                .onDelete(perform: deleteTeacher)
             }
-            .navigationTitle("Викладачі")
-            .tint(.textPrimary)
-            .alert("Видалити викладача?", isPresented: $showingDeleteAlert) {
-                Button("Скасувати", role: .cancel) { }
-                Button("Видалити", role: .destructive) {
-                    if let teacher = teacherToDelete,
-                       let index = dataStore.teachers.firstIndex(where: { $0.id == teacher.id }) {
-                        withAnimation {
-                            dataStore.teachers.remove(at: index)
-                        }
-                    }
-                    teacherToDelete = nil
-                }
-            } message: {
-                if let teacher = teacherToDelete {
-                    Text("Ви впевнені, що хочете видалити \(teacher.name)? Всі уроки та платежі будуть втрачені.")
-                }
-            }
+            .navigationTitle("🧑‍🏫 Викладачі")
             .toolbar {
+                
                 ToolbarItemGroup(placement: .navigationBarLeading) {
+                    
+                    EditButton()
+                    
                     Button {
                         showingTypeManagerSheet = true
                     } label: {
-                        Image(systemName: "gearshape.fill")
-                            .foregroundColor(.textPrimary)
+                        Label("Керування Типами", systemImage: "gearshape.fill")
                     }
                     
                     Button {
                         showingUnpaidLessonsSheet = true
                     } label: {
-                        Image(systemName: "chart.bar.fill")
-                            .foregroundColor(.textPrimary)
+                        Label("Баланс", systemImage: "banknote.fill")
                     }
                 }
                 
@@ -118,16 +64,17 @@ struct TeachersListView: View {
                     Button {
                         showingAddTeacherSheet = true
                     } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                            .foregroundColor(.accentGreen)
+                        Label("Додати викладача", systemImage: "plus.circle.fill")
                     }
                 }
+                
             }
+            
             .sheet(isPresented: $showingAddTeacherSheet) {
                 AddTeacherView()
                     .environmentObject(dataStore)
             }
+
             .sheet(isPresented: $showingTypeManagerSheet) {
                 LessonTypeManagerView()
                     .environmentObject(dataStore)
@@ -144,6 +91,7 @@ struct TeachersListView: View {
 struct TeacherRow: View {
     let teacher: Teacher
     
+    // Баланс за поточний місяць
     var currentMonthBalance: Double {
         let now = Date()
         let earned = teacher.totalEarned(for: now)
@@ -151,6 +99,7 @@ struct TeacherRow: View {
         return earned - paid
     }
     
+    // Поточний місяць
     var currentMonthString: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "LLLL"
@@ -162,63 +111,41 @@ struct TeacherRow: View {
         let balance = currentMonthBalance
         let isOwed = balance > 0
         
-        return HStack(alignment: .center, spacing: 15) {
-            // Avatar
-            ZStack {
-                Circle()
-                    .fill(Color.accentGreen.opacity(0.15))
-                    .frame(width: 60, height: 60)
-                
-                Image(systemName: "person.fill")
-                    .font(.title2)
-                    .foregroundColor(.accentGreen)
-            }
+        return HStack(alignment: .center) {
             
-            VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: "person.circle.fill")
+                .resizable()
+                .frame(width: 37, height: 37) // 40 * 0.67 ≈ 27
+                .foregroundColor(.accentColor)
+            
+            VStack(alignment: .leading, spacing: 2) { // 4 * 0.67 ≈ 2
                 Text(teacher.name)
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(.textPrimary)
+                    .font(.system(size: 13.3, weight: .semibold)) // headline ≈ 17pt, 17 * 0.67 ≈ 11.3
                     .lineLimit(1)
                 
-                HStack(spacing: 6) {
-                    Image(systemName: "book.fill")
-                        .font(.caption)
-                        .foregroundColor(.textSecondary)
-                    Text("Уроків: \(teacher.lessons.count)")
-                        .font(.subheadline)
-                        .foregroundColor(.textSecondary)
-                }
-                
-                Text(currentMonthString.uppercased())
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .foregroundColor(.textSecondary)
+                Text("Уроків: \(teacher.lessons.count)")
+                    .font(.system(size: 11.3)) // subheadline ≈ 14pt, 14 * 0.67 ≈ 9.3
+                    .foregroundColor(.secondary)
             }
             
             Spacer()
             
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(balance, format: .currency(code: "UAH"))
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(isOwed ? .softRed : .accentGreen)
+            VStack(alignment: .trailing) {
+                Text(currentMonthString.uppercased())
+                    .font(.system(size: 9.3, weight: .medium)) // caption2 ≈ 11pt, 11 * 0.67 ≈ 7.3
+                    .foregroundColor(.gray)
                 
-                Text(isOwed ? "Борг" : "Оплачено")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(isOwed ? .softRed : .accentGreen)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(isOwed ? Color.softRed.opacity(0.2) : Color.accentGreen.opacity(0.1))
-                    )
+                Text(balance, format: .currency(code: "UAH"))
+                    .font(.system(size: 13.3, weight: .bold)) // title3 ≈ 20pt, 20 * 0.67 ≈ 13.3
+                    .foregroundColor(isOwed ? .red : .green)
             }
+            .padding(.vertical, 5) // 8 * 0.67 ≈ 5
+            .padding(.horizontal, 8) // 12 * 0.67 ≈ 8
+            .background(
+                RoundedRectangle(cornerRadius: 5) // 8 * 0.67 ≈ 5
+                    .fill(isOwed ? Color.red.opacity(0.1) : Color.green.opacity(0.1))
+            )
         }
-        .padding()
-        .background(Color.cardBackground)
-        .cornerRadius(20)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .padding(.vertical, 2) // 4 * 0.67 ≈ 2
     }
 }

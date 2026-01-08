@@ -4,6 +4,8 @@
 //
 //  Created by Taras Buhra on 30.10.2025.
 //
+
+
 import SwiftUI
 
 struct TeacherDetailsView: View {
@@ -25,6 +27,7 @@ struct TeacherDetailsView: View {
         teacher.payments.sorted(by: { $0.date > $1.date })
     }
     
+    // Платежі за обраний місяць
     var filteredPayments: [Payment] {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.year, .month], from: selectedDate)
@@ -35,6 +38,7 @@ struct TeacherDetailsView: View {
         }.sorted(by: { $0.date > $1.date })
     }
     
+    // Місячні дані
     var monthlyEarned: Double {
         teacher.totalEarned(for: selectedDate)
     }
@@ -54,281 +58,202 @@ struct TeacherDetailsView: View {
         return formatter.string(from: selectedDate).capitalized
     }
     
+    // MARK: - Функції
+    
+    func deleteLesson(offsets: IndexSet) {
+        let lessonsToDelete = offsets.map { sortedLessons[$0].id }
+        teacher.lessons.removeAll { lessonsToDelete.contains($0.id) }
+        dataStore.saveTeachers()
+    }
+    
+    func deletePayment(offsets: IndexSet) {
+        let paymentsToDelete = offsets.map { filteredPayments[$0].id }
+        teacher.payments.removeAll { paymentsToDelete.contains($0.id) }
+        dataStore.saveTeachers()
+    }
+    
     // MARK: - Body View
     
     var body: some View {
-        ZStack {
-            // Gradient Background
-            LinearGradient(
-                colors: [
-                    Color(hex: "B8E6E1"),
-                    Color(hex: "A8DDD8"),
-                    Color(hex: "B8E6E1")
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+        List {
+            // MARK: Загальний Баланс
+            Section {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) { // 4 * 0.67 ≈ 2
+                        Text("Загальний Баланс")
+                            .font(.system(size: 9.3)) // caption ≈ 11pt, 11 * 0.67 ≈ 7.3
+                            .foregroundColor(.secondary)
+                        Text(teacher.currentBalance, format: .currency(code: "UAH"))
+                            .font(.system(size: 13.3, weight: .bold)) // title2 ≈ 20pt, 20 * 0.67 ≈ 13.3
+                            .foregroundColor(teacher.currentBalance > 0 ? .red : .green)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("Всього Виплачено")
+                            .font(.system(size: 9.3))
+                            .foregroundColor(.secondary)
+                        Text(teacher.totalPaid, format: .currency(code: "UAH"))
+                            .font(.system(size: 11.3, weight: .semibold)) // title3 ≈ 17pt, 17 * 0.67 ≈ 11.3
+                            .foregroundColor(.green)
+                    }
+                }
+                
+                HStack {
+                    Text("Всього зароблено:")
+                        .font(.system(size: 9.3)) // body ≈ 14pt, 14 * 0.67 ≈ 9.3
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(teacher.totalEarned, format: .currency(code: "UAH"))
+                        .font(.system(size: 9.3, weight: .bold))
+                }
+            }
             
-            ScrollView {
-                VStack(spacing: 20) {
-                    
-                    // MARK: Загальний Баланс
-                    VStack(spacing: 15) {
-                        Text("Загальна Статистика")
-                            .font(.headline)
-                            .foregroundColor(.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        
-                        HStack(spacing: 12) {
-                            MetricCard(
-                                title: "Загальний Баланс",
-                                value: teacher.currentBalance,
-                                unit: "UAH",
-                                color: teacher.currentBalance > 0 ? .softRed : .accentGreen,
-                                icon: "chart.line.uptrend.xyaxis"
-                            )
-                            
-                            MetricCard(
-                                title: "Всього Виплачено",
-                                value: teacher.totalPaid,
-                                unit: "UAH",
-                                color: .accentGreen,
-                                icon: "checkmark.circle.fill"
-                            )
-                        }
-                        
-                        HStack(spacing: 12) {
-                            Image(systemName: "banknote.fill")
-                                .foregroundColor(.accentGreen)
-                            Text("Всього заробленo:")
-                                .foregroundColor(.textSecondary)
-                            Spacer()
-                            Text(teacher.totalEarned, format: .currency(code: "UAH"))
-                                .bold()
-                                .foregroundColor(.textPrimary)
-                        }
-                        .padding()
-                        .background(Color.cardBackground)
-                        .cornerRadius(12)
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 10)
-                    
-                    // MARK: Місячний Баланс
-                    VStack(spacing: 15) {
-                        HStack {
-                            Text("Місячний Баланс")
-                                .font(.headline)
-                                .foregroundColor(.textPrimary)
-                            
-                            Spacer()
-                            
-                            DatePicker("", selection: $selectedDate, displayedComponents: .date)
-                                .labelsHidden()
-                                .datePickerStyle(.compact)
-                                .tint(.accentGreen)
-                        }
-                        
-                        VStack(spacing: 12) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Зароблено за \(monthString)")
-                                        .font(.caption)
-                                        .foregroundColor(.textSecondary)
-                                    Text(monthlyEarned, format: .currency(code: "UAH"))
-                                        .font(.title3)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.textPrimary)
-                                }
-                                Spacer()
-                            }
-                            .padding()
-                            .background(Color.cardBackground)
-                            .cornerRadius(12)
-                            
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Виплачено за \(monthString)")
-                                        .font(.caption)
-                                        .foregroundColor(.textSecondary)
-                                    Text(monthlyPaid, format: .currency(code: "UAH"))
-                                        .font(.title3)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.accentGreen)
-                                }
-                                Spacer()
-                            }
-                            .padding()
-                            .background(Color.cardBackground)
-                            .cornerRadius(12)
-                            
-                            Divider()
-                                .padding(.vertical, 4)
-                            
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Баланс за \(monthString)")
-                                        .font(.subheadline)
-                                        .foregroundColor(.textSecondary)
-                                    Text(monthlyBalance, format: .currency(code: "UAH"))
-                                        .font(.title)
-                                        .fontWeight(.heavy)
-                                        .foregroundColor(monthlyBalance > 0 ? .softRed : .accentGreen)
-                                }
-                                
-                                Spacer()
-                                
-                                if monthlyBalance > 0 {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.title2)
-                                        .foregroundColor(.softRed)
-                                } else if monthlyBalance < 0 {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.title2)
-                                        .foregroundColor(.accentGreen)
-                                }
-                            }
-                            .padding()
-                            .background(
-                                LinearGradient(
-                                    colors: monthlyBalance > 0 ?
-                                        [Color.softRed.opacity(0.1), Color.softRed.opacity(0.15)] :
-                                        [Color.accentGreen.opacity(0.05), Color.accentGreen.opacity(0.1)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .cornerRadius(15)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 15)
-                                    .stroke(monthlyBalance > 0 ? Color.softRed.opacity(0.3) : Color.accentGreen.opacity(0.2), lineWidth: 1)
-                            )
-                        }
-                        .padding()
-                        .background(Color.white.opacity(0.3))
-                        .cornerRadius(15)
-                    }
-                    .padding(.horizontal)
-                    
-                    // MARK: Платежі
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Платежі за \(monthString) (\(filteredPayments.count))")
-                            .font(.headline)
-                            .foregroundColor(.textPrimary)
-                            .padding(.horizontal)
-                        
-                        if filteredPayments.isEmpty {
-                            VStack(spacing: 12) {
-                                Image(systemName: "tray.fill")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.textSecondary)
-                                Text("Платежів у цей місяць немає")
-                                    .foregroundColor(.textSecondary)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 40)
-                        } else {
-                            ForEach(filteredPayments) { payment in
-                                if let index = teacher.payments.firstIndex(where: { $0.id == payment.id }) {
-                                    NavigationLink {
-                                        EditPaymentView(payment: $teacher.payments[index])
-                                            .environmentObject(dataStore)
-                                    } label: {
-                                        PaymentRow(payment: payment)
-                                            .padding(.horizontal)
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            withAnimation {
-                                                teacher.payments.remove(at: index)
-                                                dataStore.saveTeachers()
-                                            }
-                                        } label: {
-                                            Label("Видалити", systemImage: "trash.fill")
+            // MARK: Місячний Баланс
+            Section {
+                DatePicker("Період", selection: $selectedDate, displayedComponents: .date)
+                    .font(.system(size: 9.3)) // 14 * 0.67 ≈ 9.3
+                
+                HStack {
+                    Text("Зароблено за місяць:")
+                        .font(.system(size: 13.3))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(monthlyEarned, format: .currency(code: "UAH"))
+                        .font(.system(size: 13.3, weight: .semibold))
+                        .foregroundColor(.blue)
+                }
+                
+                HStack {
+                    Text("Виплачено за місяць:")
+                        .font(.system(size: 13.3))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(monthlyPaid, format: .currency(code: "UAH"))
+                        .font(.system(size: 13.3, weight: .semibold))
+                        .foregroundColor(.green)
+                }
+                
+                HStack {
+                    Text("Баланс за \(monthString):")
+                        .font(.system(size: 13.3))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(monthlyBalance, format: .currency(code: "UAH"))
+                        .font(.system(size: 13.3, weight: .bold)) // headline ≈ 17pt, 17 * 0.67 ≈ 11.3
+                        .foregroundColor(monthlyBalance > 0 ? .red : .green)
+                }
+            } header: {
+                Text("Місячна Статистика")
+                    .font(.system(size: 11.3))
+            }
+            
+            // MARK: Платежі
+            Section("Платежі за \(monthString) (\(filteredPayments.count))") {
+                if filteredPayments.isEmpty {
+                    Text("Платежів у цей місяць немає.")
+                        .font(.system(size: 11.3))
+                        .foregroundColor(.gray)
+                } else {
+                    ForEach(filteredPayments) { payment in
+                        if let index = teacher.payments.firstIndex(where: { $0.id == payment.id }) {
+                            NavigationLink {
+                                EditPaymentView(payment: $teacher.payments[index])
+                                    .environmentObject(dataStore)
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(payment.date, style: .date)
+                                            .font(.system(size: 11.3)) // subheadline
+                                            .foregroundColor(.secondary)
+                                        if !payment.note.isEmpty {
+                                            Text(payment.note)
+                                                .font(.system(size: 7.3)) // caption
+                                                .foregroundColor(.gray)
                                         }
                                     }
-                                }
-                            }
-                        }
-                    }
-                    
-                    // MARK: Уроки
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Уроки (\(teacher.lessons.count))")
-                            .font(.headline)
-                            .foregroundColor(.textPrimary)
-                            .padding(.horizontal)
-                        
-                        if teacher.lessons.isEmpty {
-                            VStack(spacing: 12) {
-                                Image(systemName: "book.fill")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.textSecondary)
-                                Text("Уроків ще немає. Додайте перший урок!")
-                                    .foregroundColor(.textSecondary)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 40)
-                        } else {
-                            ForEach(sortedLessons) { lesson in
-                                if let index = teacher.lessons.firstIndex(where: { $0.id == lesson.id }) {
-                                    NavigationLink {
-                                        EditLessonView(lesson: $teacher.lessons[index])
-                                            .environmentObject(dataStore)
-                                    } label: {
-                                        LessonRow(lesson: lesson)
-                                            .padding(.horizontal)
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            withAnimation {
-                                                teacher.lessons.remove(at: index)
-                                                dataStore.saveTeachers()
-                                            }
-                                        } label: {
-                                            Label("Видалити", systemImage: "trash.fill")
-                                        }
+                                    Spacer()
+                                    VStack(alignment: .trailing) {
+                                        Text(payment.amount, format: .currency(code: "UAH"))
+                                            .font(.system(size: 11.3, weight: .bold))
+                                            .foregroundColor(.green)
+                                        Text(payment.type.rawValue)
+                                            .font(.system(size: 7.3))
+                                            .foregroundColor(.secondary)
                                     }
                                 }
                             }
                         }
                     }
-                    .padding(.bottom, 30)
+                    .onDelete(perform: deletePayment)
+                }
+            }
+            
+            // MARK: Уроки
+            Section("Уроки (\(teacher.lessons.count))") {
+                if teacher.lessons.isEmpty {
+                    Text("Уроків ще немає. Додайте перший урок!")
+                        .font(.system(size: 9.3))
+                        .foregroundColor(.gray)
+                } else {
+                    ForEach(sortedLessons) { lesson in
+                        if let index = teacher.lessons.firstIndex(where: { $0.id == lesson.id }) {
+                            NavigationLink {
+                                EditLessonView(lesson: $teacher.lessons[index])
+                                    .environmentObject(dataStore)
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(lesson.date, style: .date)
+                                            .font(.system(size: 11.3))
+                                            .foregroundColor(.secondary)
+
+                                        Text(lesson.type.name)
+                                            .font(.system(size: 11.3, weight: .bold))
+                                        + Text(" (\(lesson.durationHours, specifier: "%.1f") год)")
+                                            .font(.system(size: 9.3))
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    VStack(alignment: .trailing) {
+                                        Text("Ставка: \(lesson.rateApplied, specifier: "%.2f")")
+                                            .font(.system(size: 11.3))
+                                        
+                                        Text(lesson.cost, format: .currency(code: "UAH"))
+                                            .font(.system(size: 11.3, weight: .bold))
+                                            .foregroundColor(.blue)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .onDelete(perform: deleteLesson)
                 }
             }
         }
         .navigationTitle(teacher.name)
-        .navigationBarTitleDisplayMode(.large)
-        .toolbarColorScheme(.light, for: .navigationBar)
-        .tint(.textPrimary)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button {
-                        showingAddLessonSheet = true
-                    } label: {
-                        Label("Додати Урок", systemImage: "book.fill")
-                    }
-                    
-                    Button {
-                        showingAddPaymentSheet = true
-                    } label: {
-                        Label("Додати Платіж", systemImage: "banknote.fill")
-                    }
-                    
-                    Button {
-                        showingStatsSheet = true
-                    } label: {
-                        Label("Статистика", systemImage: "chart.bar.xaxis")
-                    }
+                Button {
+                    showingAddPaymentSheet = true
                 } label: {
-                    Image(systemName: "ellipsis.circle.fill")
-                        .font(.title3)
-                        .foregroundColor(.accentGreen)
+                    Label("Додати Платіж", systemImage: "plus.forwardslash.minus")
+                }
+            }
+            
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showingStatsSheet = true
+                } label: {
+                    Label("Статистика", systemImage: "chart.bar.xaxis")
+                }
+            }
+            
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showingAddLessonSheet = true
+                } label: {
+                    Label("Додати Урок", systemImage: "plus.circle.fill")
                 }
             }
         }
