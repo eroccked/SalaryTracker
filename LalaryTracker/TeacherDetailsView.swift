@@ -4,8 +4,6 @@
 //
 //  Created by Taras Buhra on 30.10.2025.
 //
-
-
 import SwiftUI
 
 struct TeacherDetailsView: View {
@@ -21,6 +19,17 @@ struct TeacherDetailsView: View {
     
     var sortedLessons: [Lesson] {
         teacher.lessons.sorted(by: { $0.date > $1.date })
+    }
+    
+    // Уроки за обраний місяць
+    var filteredLessons: [Lesson] {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month], from: selectedDate)
+        
+        return teacher.lessons.filter { lesson in
+            let lessonComponents = calendar.dateComponents([.year, .month], from: lesson.date)
+            return lessonComponents.year == components.year && lessonComponents.month == components.month
+        }.sorted(by: { $0.date > $1.date })
     }
     
     var sortedPayments: [Payment] {
@@ -61,7 +70,7 @@ struct TeacherDetailsView: View {
     // MARK: - Функції
     
     func deleteLesson(offsets: IndexSet) {
-        let lessonsToDelete = offsets.map { sortedLessons[$0].id }
+        let lessonsToDelete = offsets.map { filteredLessons[$0].id }
         teacher.lessons.removeAll { lessonsToDelete.contains($0.id) }
         dataStore.saveTeachers()
     }
@@ -81,7 +90,7 @@ struct TeacherDetailsView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) { // 4 * 0.67 ≈ 2
                         Text("Загальний Баланс")
-                            .font(.system(size: 9.3)) // caption ≈ 11pt, 11 * 0.67 ≈ 7.3
+                            .font(.system(size: 7.3)) // caption ≈ 11pt, 11 * 0.67 ≈ 7.3
                             .foregroundColor(.secondary)
                         Text(teacher.currentBalance, format: .currency(code: "UAH"))
                             .font(.system(size: 13.3, weight: .bold)) // title2 ≈ 20pt, 20 * 0.67 ≈ 13.3
@@ -90,7 +99,7 @@ struct TeacherDetailsView: View {
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
                         Text("Всього Виплачено")
-                            .font(.system(size: 9.3))
+                            .font(.system(size: 7.3))
                             .foregroundColor(.secondary)
                         Text(teacher.totalPaid, format: .currency(code: "UAH"))
                             .font(.system(size: 11.3, weight: .semibold)) // title3 ≈ 17pt, 17 * 0.67 ≈ 11.3
@@ -115,43 +124,43 @@ struct TeacherDetailsView: View {
                 
                 HStack {
                     Text("Зароблено за місяць:")
-                        .font(.system(size: 13.3))
+                        .font(.system(size: 9.3))
                         .foregroundColor(.secondary)
                     Spacer()
                     Text(monthlyEarned, format: .currency(code: "UAH"))
-                        .font(.system(size: 13.3, weight: .semibold))
+                        .font(.system(size: 9.3, weight: .semibold))
                         .foregroundColor(.blue)
                 }
                 
                 HStack {
                     Text("Виплачено за місяць:")
-                        .font(.system(size: 13.3))
+                        .font(.system(size: 9.3))
                         .foregroundColor(.secondary)
                     Spacer()
                     Text(monthlyPaid, format: .currency(code: "UAH"))
-                        .font(.system(size: 13.3, weight: .semibold))
+                        .font(.system(size: 9.3, weight: .semibold))
                         .foregroundColor(.green)
                 }
                 
                 HStack {
                     Text("Баланс за \(monthString):")
-                        .font(.system(size: 13.3))
+                        .font(.system(size: 9.3))
                         .foregroundColor(.secondary)
                     Spacer()
                     Text(monthlyBalance, format: .currency(code: "UAH"))
-                        .font(.system(size: 13.3, weight: .bold)) // headline ≈ 17pt, 17 * 0.67 ≈ 11.3
+                        .font(.system(size: 11.3, weight: .bold)) // headline ≈ 17pt, 17 * 0.67 ≈ 11.3
                         .foregroundColor(monthlyBalance > 0 ? .red : .green)
                 }
             } header: {
                 Text("Місячна Статистика")
-                    .font(.system(size: 11.3))
+                    .font(.system(size: 9.3))
             }
             
             // MARK: Платежі
             Section("Платежі за \(monthString) (\(filteredPayments.count))") {
                 if filteredPayments.isEmpty {
                     Text("Платежів у цей місяць немає.")
-                        .font(.system(size: 11.3))
+                        .font(.system(size: 9.3))
                         .foregroundColor(.gray)
                 } else {
                     ForEach(filteredPayments) { payment in
@@ -163,7 +172,7 @@ struct TeacherDetailsView: View {
                                 HStack {
                                     VStack(alignment: .leading) {
                                         Text(payment.date, style: .date)
-                                            .font(.system(size: 11.3)) // subheadline
+                                            .font(.system(size: 9.3)) // subheadline
                                             .foregroundColor(.secondary)
                                         if !payment.note.isEmpty {
                                             Text(payment.note)
@@ -174,7 +183,7 @@ struct TeacherDetailsView: View {
                                     Spacer()
                                     VStack(alignment: .trailing) {
                                         Text(payment.amount, format: .currency(code: "UAH"))
-                                            .font(.system(size: 11.3, weight: .bold))
+                                            .font(.system(size: 9.3, weight: .bold))
                                             .foregroundColor(.green)
                                         Text(payment.type.rawValue)
                                             .font(.system(size: 7.3))
@@ -189,13 +198,13 @@ struct TeacherDetailsView: View {
             }
             
             // MARK: Уроки
-            Section("Уроки (\(teacher.lessons.count))") {
-                if teacher.lessons.isEmpty {
-                    Text("Уроків ще немає. Додайте перший урок!")
+            Section("Уроки за \(monthString) (\(filteredLessons.count))") {
+                if filteredLessons.isEmpty {
+                    Text("Уроків у цей місяць немає.")
                         .font(.system(size: 9.3))
                         .foregroundColor(.gray)
                 } else {
-                    ForEach(sortedLessons) { lesson in
+                    ForEach(filteredLessons) { lesson in
                         if let index = teacher.lessons.firstIndex(where: { $0.id == lesson.id }) {
                             NavigationLink {
                                 EditLessonView(lesson: $teacher.lessons[index])
@@ -204,23 +213,23 @@ struct TeacherDetailsView: View {
                                 HStack {
                                     VStack(alignment: .leading) {
                                         Text(lesson.date, style: .date)
-                                            .font(.system(size: 11.3))
+                                            .font(.system(size: 9.3))
                                             .foregroundColor(.secondary)
 
                                         Text(lesson.type.name)
-                                            .font(.system(size: 11.3, weight: .bold))
+                                            .font(.system(size: 9.3, weight: .bold))
                                         + Text(" (\(lesson.durationHours, specifier: "%.1f") год)")
-                                            .font(.system(size: 9.3))
+                                            .font(.system(size: 7.3))
                                     }
                                     
                                     Spacer()
                                     
                                     VStack(alignment: .trailing) {
                                         Text("Ставка: \(lesson.rateApplied, specifier: "%.2f")")
-                                            .font(.system(size: 11.3))
+                                            .font(.system(size: 7.3))
                                         
                                         Text(lesson.cost, format: .currency(code: "UAH"))
-                                            .font(.system(size: 11.3, weight: .bold))
+                                            .font(.system(size: 9.3, weight: .bold))
                                             .foregroundColor(.blue)
                                     }
                                 }
