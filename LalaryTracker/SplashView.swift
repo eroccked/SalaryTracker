@@ -24,12 +24,16 @@ struct SplashView: View {
                 AppBackground()
 
                 VStack(spacing: 18) {
-                    Image(systemName: "graduationcap.fill")
-                        .font(.system(size: 46, weight: .semibold))
-                        .foregroundStyle(AppGradient.accent)
-                        .frame(width: 108, height: 108)
-                        .background(.white, in: Circle())
-                        .shadow(color: .black.opacity(0.15), radius: 24, y: 12)
+                    Image("SplashLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 120, height: 120)
+                        .clipShape(RoundedRectangle(cornerRadius: 27, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 27, style: .continuous)
+                                .stroke(.white.opacity(0.35), lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.2), radius: 24, y: 12)
 
                     VStack(spacing: 6) {
                         Text("LalaryTracker")

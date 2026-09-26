@@ -10,16 +10,19 @@ import SwiftUI
 struct TransactionHistoryView: View {
     @EnvironmentObject var dataStore: DataStore
 
+    @State private var editingItem: PaymentWithTeacher?
+
     struct PaymentWithTeacher: Identifiable {
         var id: UUID { payment.id }
         let payment: Payment
+        let teacherID: UUID
         let teacherName: String
     }
 
     var allPayments: [PaymentWithTeacher] {
         dataStore.teachers
             .flatMap { teacher in
-                teacher.payments.map { PaymentWithTeacher(payment: $0, teacherName: teacher.name) }
+                teacher.payments.map { PaymentWithTeacher(payment: $0, teacherID: teacher.id, teacherName: teacher.name) }
             }
             .sorted { $0.payment.date > $1.payment.date }
     }
@@ -88,14 +91,48 @@ struct TransactionHistoryView: View {
                             )
 
                             ForEach(payments) { item in
-                                PaymentRowWithTeacher(item: item, showsDivider: item.id != payments.last?.id)
+                                Button {
+                                    editingItem = item
+                                } label: {
+                                    PaymentRowWithTeacher(item: item, showsDivider: item.id != payments.last?.id)
+                                }
+                                .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        deletePayment(item)
+                                    } label: {
+                                        Label("Видалити", systemImage: "trash")
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
+            .sheet(item: $editingItem) { item in
+                EditPaymentView(payment: item.payment) { updated in
+                    updatePayment(updated, teacherID: item.teacherID)
+                } onDelete: {
+                    deletePayment(item)
+                }
+            }
         }
+    }
+
+    // MARK: - Функції
+
+    func updatePayment(_ updated: Payment, teacherID: UUID) {
+        guard
+            let teacherIndex = dataStore.teachers.firstIndex(where: { $0.id == teacherID }),
+            let paymentIndex = dataStore.teachers[teacherIndex].payments.firstIndex(where: { $0.id == updated.id })
+        else { return }
+        dataStore.teachers[teacherIndex].payments[paymentIndex] = updated
+    }
+
+    func deletePayment(_ item: PaymentWithTeacher) {
+        guard let teacherIndex = dataStore.teachers.firstIndex(where: { $0.id == item.teacherID }) else { return }
+        dataStore.teachers[teacherIndex].payments.removeAll { $0.id == item.payment.id }
     }
 }
 
