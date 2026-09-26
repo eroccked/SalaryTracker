@@ -3,28 +3,32 @@
 //  LalaryTracker
 //
 //  Created by Taras Buhra on 14.11.2025.
-//  Updated with new design
 //
 
 import SwiftUI
 
 struct AddPaymentView: View {
-    @Binding var teacher: Teacher
     @EnvironmentObject var dataStore: DataStore
     @Environment(\.dismiss) var dismiss
 
     // MARK: - State Properties
+    @State private var selectedTeacherID: UUID?
     @State private var paymentDate = Date()
-    @State private var amount: Double = 0.0
+    @State private var amount: Double?
     @State private var selectedPaymentType: PaymentType = .cash
     @State private var note: String = ""
 
+    /// teacherID — якщо відкрито зі сторінки викладача, він уже обраний
+    init(teacherID: UUID? = nil) {
+        _selectedTeacherID = State(initialValue: teacherID)
+    }
+
     // MARK: - Функція збереження
     func savePayment() {
-        guard amount > 0 else {
-            print("Помилка: Сума платежу має бути більшою за нуль.")
-            return
-        }
+        guard
+            let amount, amount > 0,
+            let teacherIndex = dataStore.teachers.firstIndex(where: { $0.id == selectedTeacherID })
+        else { return }
 
         let newPayment = Payment(
             date: paymentDate,
@@ -32,55 +36,101 @@ struct AddPaymentView: View {
             type: selectedPaymentType,
             note: note
         )
-        
-        teacher.payments.append(newPayment)
-        dataStore.saveTeachers()
+
+        dataStore.teachers[teacherIndex].payments.append(newPayment)
         dismiss()
     }
-    
+
     var body: some View {
         NavigationStack {
             Form {
-                Section("Деталі Платежу") {
-                    DatePicker("Дата Платежу", selection: $paymentDate, displayedComponents: .date)
-                    
-                    HStack {
-                        Text("Сума (UAH)")
-                        Spacer()
-                        TextField("0.00", value: $amount, format: .currency(code: "UAH"))
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                    }
-                    
-                    Picker("Тип Платежу", selection: $selectedPaymentType) {
-                        ForEach(PaymentType.allCases) { type in
-                            HStack {
-                                Image(systemName: type.icon)
-                                Text(type.rawValue)
-                            }
-                            .tag(type)
-                        }
-                    }
-                    
-                    TextField("Примітка (необов'язково)", text: $note, axis: .vertical)
-                        .lineLimit(3...5)
-                }
-                
                 Section {
-                    Button("Зберегти Платіж") {
-                        savePayment()
-                    }
-                    .disabled(amount <= 0)
+                    AmountInputHeader(amount: $amount)
                 }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+
+                TeacherPickerSection(selectedTeacherID: $selectedTeacherID)
+
+                PaymentDetailsSection(
+                    paymentDate: $paymentDate,
+                    selectedPaymentType: $selectedPaymentType,
+                    note: $note
+                )
             }
-            .navigationTitle("Додати Платіж")
+            .appFormStyle()
+            .navigationTitle("Новий платіж")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Відмінити") {
-                        dismiss()
-                    }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Скасувати") { dismiss() }
                 }
             }
+            .primaryAction("Зберегти платіж", isDisabled: (amount ?? 0) <= 0 || selectedTeacherID == nil) {
+                savePayment()
+            }
+            .onAppear {
+                if selectedTeacherID == nil {
+                    selectedTeacherID = dataStore.teachers.first?.id
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Спільні елементи форм платежу
+
+/// Велике поле суми на градієнті
+struct AmountInputHeader: View {
+    @Binding var amount: Double?
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Text("Сума платежу")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.8))
+
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                TextField("", value: $amount, format: .number, prompt: Text("0").foregroundStyle(.white.opacity(0.5)))
+                    .keyboardType(.decimalPad)
+                    .focused($isFocused)
+                    .multilineTextAlignment(.center)
+                    .fixedSize()
+                Text("₴")
+            }
+            .font(.system(size: 38, weight: .bold, design: .rounded))
+            .foregroundStyle(.white)
+            .tint(.white)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 26)
+        .background(AppBackground().clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous)))
+        .contentShape(Rectangle())
+        .onTapGesture { isFocused = true }
+    }
+}
+
+struct PaymentDetailsSection: View {
+    @Binding var paymentDate: Date
+    @Binding var selectedPaymentType: PaymentType
+    @Binding var note: String
+
+    var body: some View {
+        Section("Деталі платежу") {
+            DatePicker("Дата", selection: $paymentDate, displayedComponents: .date)
+
+            Picker("Спосіб", selection: $selectedPaymentType) {
+                ForEach(PaymentType.allCases) { type in
+                    Label(type.rawValue, systemImage: type.icon)
+                        .tag(type)
+                }
+            }
+            .pickerStyle(.segmented)
+            .listRowBackground(Color.surface)
+
+            TextField("Примітка (необов'язково)", text: $note, axis: .vertical)
+                .lineLimit(2...4)
         }
     }
 }

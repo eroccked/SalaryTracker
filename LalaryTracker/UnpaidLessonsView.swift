@@ -3,111 +3,96 @@
 //  LalaryTracker
 //
 //  Created by Taras Buhra on 05.11.2025.
-//  Updated with new design
 //
 
 import SwiftUI
 
 struct UnpaidLessonsView: View {
     @EnvironmentObject var dataStore: DataStore
-    
-    @State private var selectedDate = Date()
-    
-    var titleDateString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "LLLL yyyy"
-        formatter.locale = Locale(identifier: "uk_UA")
-        return formatter.string(from: selectedDate).capitalized
+
+    @State private var month = Date()
+
+    struct LessonWithTeacher: Identifiable {
+        var id: UUID { lesson.id }
+        let lesson: Lesson
+        let teacherName: String
     }
-    
-    var lessonsForSelectedMonth: [Lesson] {
-        let calendar = Calendar.current
-        let components = calendar.dateComponents([.year, .month], from: selectedDate)
-        
-        return dataStore.teachers
-            .flatMap { $0.lessons }
-            .filter { lesson in
-                let lessonComponents = calendar.dateComponents([.year, .month], from: lesson.date)
-                return lessonComponents.year == components.year && lessonComponents.month == components.month
+
+    var lessonsForMonth: [LessonWithTeacher] {
+        dataStore.teachers
+            .flatMap { teacher in
+                teacher.lessons.map { LessonWithTeacher(lesson: $0, teacherName: teacher.name) }
             }
-            .sorted(by: { $0.date > $1.date })
+            .filter { $0.lesson.date.isSameMonth(as: month) }
+            .sorted(by: { $0.lesson.date > $1.lesson.date })
     }
-    
+
     var totalEarnedForMonth: Double {
-        lessonsForSelectedMonth.reduce(0) { $0 + $1.cost }
+        lessonsForMonth.reduce(0) { $0 + $1.lesson.cost }
     }
-    
+
     var totalHoursForMonth: Double {
-        lessonsForSelectedMonth.reduce(0) { $0 + $1.durationHours }
+        lessonsForMonth.reduce(0) { $0 + $1.lesson.durationHours }
     }
-    
+
+    private var typeEntries: [DonutEntry] {
+        Dictionary(grouping: lessonsForMonth, by: { $0.lesson.type.name })
+            .map { (name, items) in (name, items.reduce(0) { $0 + $1.lesson.cost }) }
+            .sorted { $0.1 > $1.1 }
+            .enumerated()
+            .map { index, pair in
+                DonutEntry(label: pair.0, value: pair.1, color: Color.chartPalette[index % Color.chartPalette.count])
+            }
+    }
+
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Date Picker Header
-                HStack {
-                    Text("Період:")
-                        .font(.headline)
-                    Spacer()
-                    DatePicker("", selection: $selectedDate, displayedComponents: .date)
-                        .labelsHidden()
-                        .datePickerStyle(.compact)
-                }
-                .padding()
-                .background(Color(.systemGray6))
-                
-                // Summary Section
-                if !lessonsForSelectedMonth.isEmpty {
-                    VStack(spacing: 12) {
-                        HStack {
-                            Text("Всього зароблено:")
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            Text(totalEarnedForMonth, format: .currency(code: "UAH"))
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(.green)
-                        }
-                        
-                        HStack {
-                            Image(systemName: "timer")
-                            Text("Загальна кількість годин:")
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            Text("\(totalHoursForMonth, specifier: "%.1f") год")
-                                .bold()
-                        }
+            HeroScaffold {
+                VStack(spacing: 22) {
+                    HeroTitle(title: "Уроки", icon: "book.closed.fill")
+
+                    VStack(spacing: 14) {
+                        MonthSwitcher(date: $month)
+                        HeroAmount(caption: "Зароблено за місяць", amount: totalEarnedForMonth)
                     }
-                    .padding()
-                    .background(Color(.systemGray6))
+                    .padding(.top, 10)
+
+                    HStack(spacing: 8) {
+                        HeroChip(icon: "book.closed", text: Fmt.lessons(lessonsForMonth.count))
+                        HeroChip(icon: "timer", text: Fmt.hours(totalHoursForMonth))
+                    }
                 }
-                
-                Divider()
-                
-                // Lessons List
-                if lessonsForSelectedMonth.isEmpty {
-                    ContentUnavailableView(
-                        "Немає Уроків",
-                        systemImage: "checkmark.circle.fill",
-                        description: Text("Уроки за \(titleDateString) відсутні.")
+            } panel: {
+                if lessonsForMonth.isEmpty {
+                    EmptyStateView(
+                        icon: "calendar",
+                        title: "Немає уроків",
+                        message: "Уроки за \(Fmt.month(month).lowercased()) відсутні."
                     )
                 } else {
-                    List {
-                        ForEach(lessonsForSelectedMonth) { lesson in
-                            if let teacherIndex = dataStore.teachers.firstIndex(where: { $0.lessons.contains(where: { $0.id == lesson.id }) }) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(dataStore.teachers[teacherIndex].name)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    
-                                    LessonRow(lesson: lesson)
-                                }
+                    VStack(alignment: .leading, spacing: 16) {
+                        SectionHeader(title: "За типами")
+                        DonutStatCard(entries: typeEntries)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        SectionHeader(title: "Усі уроки", trailing: "\(lessonsForMonth.count)")
+
+                        ForEach(lessonsForMonth) { item in
+                            ListRow(
+                                title: item.teacherName,
+                                subtitle: "\(item.lesson.type.name) · \(Fmt.day(item.lesson.date))",
+                                value: Fmt.money(item.lesson.cost),
+                                caption: Fmt.hours(item.lesson.durationHours),
+                                showsDivider: item.id != lessonsForMonth.last?.id
+                            ) {
+                                AvatarView(name: item.teacherName)
                             }
                         }
                     }
                 }
             }
-            .navigationTitle("Уроки за місяць")
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
 }

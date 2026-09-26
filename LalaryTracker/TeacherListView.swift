@@ -8,80 +8,150 @@
 import SwiftUI
 
 struct TeachersListView: View {
-    
+
     @EnvironmentObject var dataStore: DataStore
-    
-    @State private var showingTypeManagerSheet = false
-    @State private var showingAddTeacherSheet = false
-    @State private var showingUnpaidLessonsSheet = false
-    
-    func deleteTeacher(offsets: IndexSet) {
-        dataStore.teachers.remove(atOffsets: offsets)
+    @Binding var selectedTab: AppTab
+
+    @State private var month = Date()
+    @State private var quickSheet: QuickSheet?
+    @State private var teacherToDelete: Teacher?
+
+    // MARK: - Місячні підсумки по всіх викладачах
+
+    var monthEarned: Double {
+        dataStore.teachers.reduce(0) { $0 + $1.totalEarned(for: month) }
     }
-    
+
+    var monthPaid: Double {
+        dataStore.teachers.reduce(0) { $0 + $1.totalPayments(for: month) }
+    }
+
+    var monthDebt: Double {
+        monthEarned - monthPaid
+    }
+
     var body: some View {
         NavigationStack {
-            
-            List {
-                if dataStore.teachers.isEmpty {
-                    ContentUnavailableView("Немає викладачів",
-                                           systemImage: "person.3.fill",
-                                           description: Text("Натисніть '+' для додавання нового профілю."))
+            HeroScaffold {
+                hero
+            } panel: {
+                quickActions
+                teachersSection
+            }
+            .toolbar(.hidden, for: .navigationBar)
+            .sheet(item: $quickSheet) { sheet in
+                QuickSheetView(sheet: sheet)
+                    .environmentObject(dataStore)
+            }
+            .confirmationDialog(
+                "Видалити викладача?",
+                isPresented: Binding(
+                    get: { teacherToDelete != nil },
+                    set: { if !$0 { teacherToDelete = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: teacherToDelete
+            ) { teacher in
+                Button("Видалити «\(teacher.name)»", role: .destructive) {
+                    dataStore.teachers.removeAll { $0.id == teacher.id }
                 }
-                
+            } message: { _ in
+                Text("Усі уроки та платежі цього викладача буде видалено.")
+            }
+        }
+    }
+
+    // MARK: - Hero
+
+    private var hero: some View {
+        VStack(spacing: 22) {
+            HeroTitle(title: "LalaryTracker", icon: "graduationcap.fill")
+
+            VStack(spacing: 14) {
+                MonthSwitcher(date: $month)
+                HeroAmount(caption: "Зароблено за місяць", amount: monthEarned)
+            }
+            .padding(.top, 10)
+
+            HStack(spacing: 14) {
+                Button { quickSheet = .lesson } label: {
+                    Label("Урок", systemImage: "plus")
+                }
+                .buttonStyle(PillButtonStyle())
+
+                Button { quickSheet = .payment } label: {
+                    Label("Платіж", systemImage: "arrow.up.right")
+                }
+                .buttonStyle(PillButtonStyle())
+            }
+
+            if monthDebt > 0 {
+                InfoStrip(
+                    icon: "exclamationmark",
+                    text: "До виплати \(Fmt.money(monthDebt))",
+                    buttonTitle: "Уроки"
+                ) {
+                    selectedTab = .lessons
+                }
+            } else if monthEarned > 0 {
+                InfoStrip(icon: "checkmark", text: "За цей місяць усе виплачено")
+            }
+        }
+    }
+
+    // MARK: - Quick Actions
+
+    private var quickActions: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionHeader(title: "Швидкі дії")
+
+            HStack(spacing: 12) {
+                QuickActionTile(title: "Викладач", icon: "person.badge.plus", background: AppGradient.lavender, tint: .brand) {
+                    quickSheet = .teacher
+                }
+                QuickActionTile(title: "Уроки", icon: "book.closed.fill", background: AppGradient.peach, tint: Color(hex: "D9804F")) {
+                    selectedTab = .lessons
+                }
+                QuickActionTile(title: "Транзакції", icon: "wallet.bifold.fill", background: AppGradient.mint, tint: .positive) {
+                    selectedTab = .transactions
+                }
+            }
+        }
+    }
+
+    // MARK: - Teachers
+
+    private var teachersSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            SectionHeader(title: "Викладачі", trailing: dataStore.teachers.isEmpty ? nil : "\(dataStore.teachers.count)")
+
+            if dataStore.teachers.isEmpty {
+                EmptyStateView(
+                    icon: "person.3.fill",
+                    title: "Немає викладачів",
+                    message: "Натисніть «Викладач» у швидких діях,\nщоб додати перший профіль."
+                )
+            } else {
                 ForEach($dataStore.teachers) { $teacher in
-                    
                     NavigationLink {
                         TeacherDetailsView(teacher: $teacher)
                             .environmentObject(dataStore)
                     } label: {
-                        TeacherRow(teacher: teacher)
+                        TeacherRow(
+                            teacher: teacher,
+                            month: month,
+                            showsDivider: teacher.id != dataStore.teachers.last?.id
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            teacherToDelete = teacher
+                        } label: {
+                            Label("Видалити", systemImage: "trash")
+                        }
                     }
                 }
-                .onDelete(perform: deleteTeacher)
-            }
-            .navigationTitle("🧑‍🏫 Викладачі")
-            .toolbar {
-                
-                ToolbarItemGroup(placement: .navigationBarLeading) {
-                    
-                    EditButton()
-                    
-                    Button {
-                        showingTypeManagerSheet = true
-                    } label: {
-                        Label("Керування Типами", systemImage: "gearshape.fill")
-                    }
-                    
-                    Button {
-                        showingUnpaidLessonsSheet = true
-                    } label: {
-                        Label("Баланс", systemImage: "banknote.fill")
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showingAddTeacherSheet = true
-                    } label: {
-                        Label("Додати викладача", systemImage: "plus.circle.fill")
-                    }
-                }
-                
-            }
-            
-            .sheet(isPresented: $showingAddTeacherSheet) {
-                AddTeacherView()
-                    .environmentObject(dataStore)
-            }
-
-            .sheet(isPresented: $showingTypeManagerSheet) {
-                LessonTypeManagerView()
-                    .environmentObject(dataStore)
-            }
-            .sheet(isPresented: $showingUnpaidLessonsSheet) {
-                UnpaidLessonsView()
-                    .environmentObject(dataStore)
             }
         }
     }
@@ -90,62 +160,33 @@ struct TeachersListView: View {
 
 struct TeacherRow: View {
     let teacher: Teacher
-    
-    // Баланс за поточний місяць
-    var currentMonthBalance: Double {
-        let now = Date()
-        let earned = teacher.totalEarned(for: now)
-        let paid = teacher.totalPayments(for: now)
-        return earned - paid
+    let month: Date
+    var showsDivider: Bool = true
+
+    private var balance: Double {
+        teacher.totalEarned(for: month) - teacher.totalPayments(for: month)
     }
-    
-    // Поточний місяць
-    var currentMonthString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "LLLL"
-        formatter.locale = Locale(identifier: "uk_UA")
-        return formatter.string(from: Date()).capitalized
+
+    private var lessonsCount: Int {
+        teacher.lessons.filter { $0.date.isSameMonth(as: month) }.count
     }
-    
+
+    private var caption: String {
+        if balance > 0 { return "борг" }
+        if balance < 0 { return "переплата" }
+        return "сплачено"
+    }
+
     var body: some View {
-        let balance = currentMonthBalance
-        let isOwed = balance > 0
-        
-        return HStack(alignment: .center) {
-            
-            Image(systemName: "person.circle.fill")
-                .resizable()
-                .frame(width: 37, height: 37) // 40 * 0.67 ≈ 27
-                .foregroundColor(.accentColor)
-            
-            VStack(alignment: .leading, spacing: 2) { // 4 * 0.67 ≈ 2
-                Text(teacher.name)
-                    .font(.system(size: 13.3, weight: .semibold)) // headline ≈ 17pt, 17 * 0.67 ≈ 11.3
-                    .lineLimit(1)
-                
-                Text("Уроків: \(teacher.lessons.count)")
-                    .font(.system(size: 11.3)) // subheadline ≈ 14pt, 14 * 0.67 ≈ 9.3
-                    .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-            
-            VStack(alignment: .trailing) {
-                Text(currentMonthString.uppercased())
-                    .font(.system(size: 9.3, weight: .medium)) // caption2 ≈ 11pt, 11 * 0.67 ≈ 7.3
-                    .foregroundColor(.gray)
-                
-                Text(balance, format: .currency(code: "UAH"))
-                    .font(.system(size: 13.3, weight: .bold)) // title3 ≈ 20pt, 20 * 0.67 ≈ 13.3
-                    .foregroundColor(isOwed ? .red : .green)
-            }
-            .padding(.vertical, 5) // 8 * 0.67 ≈ 5
-            .padding(.horizontal, 8) // 12 * 0.67 ≈ 8
-            .background(
-                RoundedRectangle(cornerRadius: 5) // 8 * 0.67 ≈ 5
-                    .fill(isOwed ? Color.red.opacity(0.1) : Color.green.opacity(0.1))
-            )
+        ListRow(
+            title: teacher.name,
+            subtitle: "\(Fmt.lessons(lessonsCount)) · \(Fmt.month(month, withYear: false).lowercased())",
+            value: Fmt.money(balance),
+            valueColor: balance > 0 ? .owed : .ink,
+            caption: caption,
+            showsDivider: showsDivider
+        ) {
+            AvatarView(name: teacher.name)
         }
-        .padding(.vertical, 2) // 4 * 0.67 ≈ 2
     }
 }

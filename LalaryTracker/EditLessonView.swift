@@ -8,80 +8,99 @@
 import SwiftUI
 
 struct EditLessonView: View {
-    @Binding var lesson: Lesson
+    let lesson: Lesson
+    let onSave: (Lesson) -> Void
+    let onDelete: () -> Void
+
     @EnvironmentObject var dataStore: DataStore
     @Environment(\.dismiss) var dismiss
-    
+
     @State private var lessonDate: Date
     @State private var durationHours: Int
     @State private var rateApplied: Double
     @State private var selectedLessonType: LessonType
-    
+    @State private var showingDeleteConfirmation = false
+
     let availableHours = Array(1...10)
-    
-    init(lesson: Binding<Lesson>) {
-        self._lesson = lesson
-        self._lessonDate = State(initialValue: lesson.wrappedValue.date)
-        self._durationHours = State(initialValue: Int(lesson.wrappedValue.durationHours.rounded()))
-        self._rateApplied = State(initialValue: lesson.wrappedValue.rateApplied)
-        self._selectedLessonType = State(initialValue: lesson.wrappedValue.type)
+
+    init(lesson: Lesson, onSave: @escaping (Lesson) -> Void, onDelete: @escaping () -> Void) {
+        self.lesson = lesson
+        self.onSave = onSave
+        self.onDelete = onDelete
+        self._lessonDate = State(initialValue: lesson.date)
+        self._durationHours = State(initialValue: Int(lesson.durationHours.rounded()))
+        self._rateApplied = State(initialValue: lesson.rateApplied)
+        self._selectedLessonType = State(initialValue: lesson.type)
     }
-    
+
+    /// Поточний тип теж має бути у списку, навіть якщо його вже видалили з налаштувань
+    var lessonTypeOptions: [LessonType] {
+        dataStore.lessonTypes.contains(lesson.type) ? dataStore.lessonTypes : [lesson.type] + dataStore.lessonTypes
+    }
+
     func saveChanges() {
-        lesson.date = lessonDate
-        lesson.durationHours = Double(durationHours)
-        lesson.rateApplied = rateApplied
-        lesson.type = selectedLessonType
-        dataStore.saveTeachers()
+        var updated = lesson
+        updated.date = lessonDate
+        updated.durationHours = Double(durationHours)
+        updated.rateApplied = rateApplied
+        updated.type = selectedLessonType
+        onSave(updated)
         dismiss()
     }
-    
+
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    FormAmountHeader(
+                        caption: "Вартість уроку",
+                        amount: Double(durationHours) * rateApplied,
+                        detail: "\(Fmt.hours(Double(durationHours))) × \(Fmt.money(rateApplied))"
+                    )
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+
                 Section("Деталі уроку") {
-                    DatePicker("Дата Уроку", selection: $lessonDate, displayedComponents: .date)
-                    
-                    Picker("Тривалість (годин)", selection: $durationHours) {
+                    DatePicker("Дата", selection: $lessonDate, displayedComponents: .date)
+
+                    Picker("Тривалість", selection: $durationHours) {
                         ForEach(availableHours, id: \.self) { hour in
                             Text("\(hour) год")
                         }
                     }
-                    
-                    Picker("Тип Уроку", selection: $selectedLessonType) {
-                        ForEach(dataStore.lessonTypes, id: \.self) { type in
+
+                    Picker("Тип уроку", selection: $selectedLessonType) {
+                        ForEach(lessonTypeOptions, id: \.self) { type in
                             Text(type.name).tag(type)
                         }
                     }
-                    
-                    HStack {
-                        Text("Ставка за годину (грн)")
-                        Spacer()
-                        TextField("Ставка", value: $rateApplied, format: .currency(code: "UAH"))
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                    }
-                    
-                    HStack {
-                        Text("Вартість уроку")
-                        Spacer()
-                        Text(Double(durationHours) * rateApplied, format: .currency(code: "UAH"))
-                            .fontWeight(.bold)
-                    }
+
+                    RateField(rate: $rateApplied)
                 }
-                
+
                 Section {
-                    Button("Зберегти Зміни") {
-                        saveChanges()
+                    Button("Видалити урок", role: .destructive) {
+                        showingDeleteConfirmation = true
                     }
+                    .frame(maxWidth: .infinity)
                 }
             }
-            .navigationTitle("Редагувати Урок")
+            .appFormStyle()
+            .navigationTitle("Редагувати урок")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Відмінити") {
-                        dismiss()
-                    }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Скасувати") { dismiss() }
+                }
+            }
+            .primaryAction("Зберегти зміни") {
+                saveChanges()
+            }
+            .confirmationDialog("Видалити цей урок?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+                Button("Видалити", role: .destructive) {
+                    dismiss()
+                    onDelete()
                 }
             }
             .onChange(of: selectedLessonType) { _, newType in

@@ -12,34 +12,44 @@ struct SplashView: View {
     @State private var isActive = false
     @State private var opacity: Double = 0.5
     @State private var size = 0.8
-    
+
     @EnvironmentObject var dataStore: DataStore
-    
+
     var body: some View {
         if isActive {
-            TeachersListView()
+            ContentView()
                 .environmentObject(dataStore)
         } else {
-            VStack(spacing: 20) {
-                // Використовуємо вашу іконку
-                Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 80))
-                    .foregroundColor(.accentColor)
-                
-                Text("LalaryTracker")
-                    .font(.largeTitle)
-                    .fontWeight(.heavy)
-                    .foregroundColor(.primary)
+            ZStack {
+                AppBackground()
+
+                VStack(spacing: 18) {
+                    Image(systemName: "graduationcap.fill")
+                        .font(.system(size: 46, weight: .semibold))
+                        .foregroundStyle(AppGradient.accent)
+                        .frame(width: 108, height: 108)
+                        .background(.white, in: Circle())
+                        .shadow(color: .black.opacity(0.15), radius: 24, y: 12)
+
+                    VStack(spacing: 6) {
+                        Text("LalaryTracker")
+                            .font(.system(size: 34, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text("Облік уроків і виплат")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.8))
+                    }
+                }
+                .scaleEffect(size)
+                .opacity(opacity)
             }
-            .scaleEffect(size)
-            .opacity(opacity)
             .onAppear {
-                withAnimation(.easeIn(duration: 1.2)) {
+                withAnimation(.easeOut(duration: 0.9)) {
                     self.size = 1.0
                     self.opacity = 1.0
                 }
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
                     withAnimation {
                         self.isActive = true
                     }

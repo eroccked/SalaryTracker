@@ -3,7 +3,6 @@
 //  LalaryTracker
 //
 //  Created by Taras Buhra on 31.10.2025.
-//  Updated with new design
 //
 
 
@@ -12,88 +11,121 @@ import SwiftUI
 struct LessonTypeManagerView: View {
     @EnvironmentObject var dataStore: DataStore
     @State private var showingAddSheet = false
-    
+
+    var sortedTypes: [LessonType] {
+        dataStore.lessonTypes.sorted(by: { $0.name < $1.name })
+    }
+
     var body: some View {
-        NavigationView {
-            List {
-                ForEach(dataStore.lessonTypes.sorted(by: { $0.name < $1.name })) { lessonType in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(lessonType.name)
-                                .font(.headline)
-                            Text("Базова ставка:")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+        NavigationStack {
+            HeroScaffold {
+                VStack(spacing: 22) {
+                    HeroTitle(title: "Типи уроків", icon: "square.stack.fill")
+
+                    VStack(spacing: 8) {
+                        Text("Налаштовано типів")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.78))
+                        Text("\(dataStore.lessonTypes.count)")
+                            .font(.system(size: 46, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.top, 10)
+
+                    Button { showingAddSheet = true } label: {
+                        Label("Новий тип", systemImage: "plus")
+                    }
+                    .buttonStyle(PillButtonStyle())
+                }
+            } panel: {
+                VStack(alignment: .leading, spacing: 4) {
+                    SectionHeader(title: "Базові ставки")
+
+                    if sortedTypes.isEmpty {
+                        EmptyStateView(
+                            icon: "square.stack",
+                            title: "Немає типів",
+                            message: "Додайте тип уроку з базовою ставкою."
+                        )
+                    }
+
+                    ForEach(Array(sortedTypes.enumerated()), id: \.element.id) { index, lessonType in
+                        ListRow(
+                            title: lessonType.name,
+                            subtitle: "Базова ставка",
+                            value: Fmt.money(lessonType.defaultRate),
+                            caption: "за годину",
+                            showsDivider: index < sortedTypes.count - 1
+                        ) {
+                            IconBadge(systemName: "tag.fill", tint: Color.chartPalette[index % Color.chartPalette.count])
                         }
-                        Spacer()
-                        Text(lessonType.defaultRate, format: .currency(code: "UAH"))
-                            .font(.title3)
-                            .bold()
-                            .foregroundColor(.accentColor)
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                dataStore.lessonTypes.removeAll { $0.id == lessonType.id }
+                            } label: {
+                                Label("Видалити", systemImage: "trash")
+                            }
+                        }
                     }
-                }
-                .onDelete(perform: deleteTypes)
-            }
-            .navigationTitle("Керування Типами Уроків")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    EditButton()
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showingAddSheet = true
-                    } label: {
-                        Label("Додати тип", systemImage: "plus.circle.fill")
+
+                    if !sortedTypes.isEmpty {
+                        Text("Утримуйте тип, щоб видалити його.")
+                            .font(.footnote)
+                            .foregroundStyle(Color.inkSecondary)
+                            .padding(.top, 12)
                     }
                 }
             }
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingAddSheet) {
                 AddLessonTypeView()
                     .environmentObject(dataStore)
             }
         }
     }
-    
-    func deleteTypes(offsets: IndexSet) {
-        dataStore.lessonTypes.remove(atOffsets: offsets)
-    }
 }
 
 struct AddLessonTypeView: View {
     @EnvironmentObject var dataStore: DataStore
     @Environment(\.dismiss) var dismiss
-    
+
     @State private var typeName: String = ""
     @State private var defaultRate: Double = 450
-    
+
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
-                TextField("Назва типу (напр. 'Індивідуальний')", text: $typeName)
-                
-                HStack {
-                    Text("Базова ставка (грн)")
-                    Spacer()
-                    TextField("Ставка", value: $defaultRate, format: .currency(code: "UAH"))
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
+                Section("Тип уроку") {
+                    TextField("Назва (напр. «Індивідуальний»)", text: $typeName)
+                }
+
+                Section("Ставка") {
+                    HStack {
+                        Text("Базова ставка, ₴/год")
+                        Spacer()
+                        TextField("Ставка", value: $defaultRate, format: .number)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .fontWeight(.semibold)
+                    }
                 }
             }
-            .navigationTitle("Новий Тип Уроку")
+            .appFormStyle()
+            .navigationTitle("Новий тип уроку")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Скасувати") { dismiss() }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Зберегти") { saveNewType() }
-                        .disabled(typeName.isEmpty || defaultRate <= 0)
-                }
+            }
+            .primaryAction("Зберегти тип", isDisabled: typeName.trimmingCharacters(in: .whitespaces).isEmpty || defaultRate <= 0) {
+                saveNewType()
             }
         }
     }
-    
+
     func saveNewType() {
-        let newType = LessonType(name: typeName, defaultRate: defaultRate)
+        let newType = LessonType(name: typeName.trimmingCharacters(in: .whitespaces), defaultRate: defaultRate)
         dataStore.lessonTypes.append(newType)
         dismiss()
     }

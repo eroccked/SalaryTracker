@@ -8,74 +8,76 @@
 import SwiftUI
 
 struct EditPaymentView: View {
-    @Binding var payment: Payment
-    @EnvironmentObject var dataStore: DataStore
+    let payment: Payment
+    let onSave: (Payment) -> Void
+    let onDelete: () -> Void
+
     @Environment(\.dismiss) var dismiss
-    
+
     @State private var paymentDate: Date
-    @State private var amount: Double
+    @State private var amount: Double?
     @State private var selectedPaymentType: PaymentType
     @State private var note: String
-    
-    init(payment: Binding<Payment>) {
-        self._payment = payment
-        self._paymentDate = State(initialValue: payment.wrappedValue.date)
-        self._amount = State(initialValue: payment.wrappedValue.amount)
-        self._selectedPaymentType = State(initialValue: payment.wrappedValue.type)
-        self._note = State(initialValue: payment.wrappedValue.note)
+    @State private var showingDeleteConfirmation = false
+
+    init(payment: Payment, onSave: @escaping (Payment) -> Void, onDelete: @escaping () -> Void) {
+        self.payment = payment
+        self.onSave = onSave
+        self.onDelete = onDelete
+        self._paymentDate = State(initialValue: payment.date)
+        self._amount = State(initialValue: payment.amount)
+        self._selectedPaymentType = State(initialValue: payment.type)
+        self._note = State(initialValue: payment.note)
     }
-    
+
     func saveChanges() {
-        payment.date = paymentDate
-        payment.amount = amount
-        payment.type = selectedPaymentType
-        payment.note = note
-        
-        dataStore.saveTeachers()
+        guard let amount, amount > 0 else { return }
+        var updated = payment
+        updated.date = paymentDate
+        updated.amount = amount
+        updated.type = selectedPaymentType
+        updated.note = note
+        onSave(updated)
         dismiss()
     }
-    
+
     var body: some View {
         NavigationStack {
             Form {
-                Section("Деталі Платежу") {
-                    DatePicker("Дата Платежу", selection: $paymentDate, displayedComponents: .date)
-                    
-                    HStack {
-                        Text("Сума (UAH)")
-                        Spacer()
-                        TextField("0.00", value: $amount, format: .currency(code: "UAH"))
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                    }
-                    
-                    Picker("Тип Платежу", selection: $selectedPaymentType) {
-                        ForEach(PaymentType.allCases) { type in
-                            HStack {
-                                Image(systemName: type.icon)
-                                Text(type.rawValue)
-                            }
-                            .tag(type)
-                        }
-                    }
-                    
-                    TextField("Примітка (необов'язково)", text: $note, axis: .vertical)
-                        .lineLimit(3...5)
-                }
-                
                 Section {
-                    Button("Зберегти Зміни") {
-                        saveChanges()
+                    AmountInputHeader(amount: $amount)
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+
+                PaymentDetailsSection(
+                    paymentDate: $paymentDate,
+                    selectedPaymentType: $selectedPaymentType,
+                    note: $note
+                )
+
+                Section {
+                    Button("Видалити платіж", role: .destructive) {
+                        showingDeleteConfirmation = true
                     }
-                    .disabled(amount <= 0)
+                    .frame(maxWidth: .infinity)
                 }
             }
-            .navigationTitle("Редагувати Платіж")
+            .appFormStyle()
+            .navigationTitle("Редагувати платіж")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Відмінити") {
-                        dismiss()
-                    }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Скасувати") { dismiss() }
+                }
+            }
+            .primaryAction("Зберегти зміни", isDisabled: (amount ?? 0) <= 0) {
+                saveChanges()
+            }
+            .confirmationDialog("Видалити цей платіж?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+                Button("Видалити", role: .destructive) {
+                    dismiss()
+                    onDelete()
                 }
             }
         }

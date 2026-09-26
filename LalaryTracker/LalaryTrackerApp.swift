@@ -15,6 +15,7 @@ struct LalaryTrackerApp: App {
         WindowGroup {
             SplashView()
                 .environmentObject(dataStore)
+                .preferredColorScheme(.light)
         }
     }
 }

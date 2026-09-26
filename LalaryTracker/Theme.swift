@@ -8,14 +8,35 @@ import SwiftUI
 
 // MARK: - Color Palette
 extension Color {
-    static let appBackground = Color(hex: "B8E6E1")      // М'ятно-бірюзовий фон
-    static let cardBackground = Color(hex: "E8F4F2")     // Світлий м'ятний для карток
-    static let textPrimary = Color(hex: "000000")        // Чорний для основного тексту та іконок
-    static let textSecondary = Color(hex: "6B7280")      // Темно-сірий для вторинного тексту
-    static let accentGreen = Color(hex: "000000")        // Чорний для акцентів та іконок
-    static let warmBrown = Color(hex: "6B7280")          // Темно-сірий
-    static let softRed = Color(hex: "D98B8B")            // М'який пастельний червоний для боргів
-    
+    // Бренд
+    static let brandDeep  = Color(hex: "2E2FA3")        // Темні кнопки на світлому
+    static let brand      = Color(hex: "5559E0")        // Основний акцент
+    static let brandLight = Color(hex: "8C8FF0")
+
+    // Текст
+    static let ink          = Color(hex: "17172F")      // Основний текст
+    static let inkSecondary = Color(hex: "8B8BA7")      // Підписи, дати
+
+    // Поверхні
+    static let surface     = Color.white
+    static let surfaceSoft = Color(hex: "F5F4FA")       // Фон форм і вкладених карток
+    static let hairline    = Color(hex: "ECEBF3")       // Розділювачі
+
+    // Семантика
+    static let positive = Color(hex: "3D9A74")          // Виплачено / отримано
+    static let owed     = Color(hex: "E26D7D")          // Борг
+    static let warm     = Color(hex: "E9A94A")
+
+    // Кольори для графіків (по черзі для серій)
+    static let chartPalette: [Color] = [
+        Color(hex: "5559E0"),
+        Color(hex: "F09A7A"),
+        Color(hex: "4FAE8A"),
+        Color(hex: "E9B44C"),
+        Color(hex: "B07CE8"),
+        Color(hex: "5FAEE3")
+    ]
+
     // Hex initializer
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
@@ -32,7 +53,7 @@ extension Color {
         default:
             (a, r, g, b) = (1, 1, 1, 0)
         }
-        
+
         self.init(
             .sRGB,
             red: Double(r) / 255,
@@ -43,61 +64,158 @@ extension Color {
     }
 }
 
-// MARK: - Custom Styles
-struct CardModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .background(Color.cardBackground)
-            .cornerRadius(20)
-            .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+// MARK: - Gradients
+enum AppGradient {
+    static let background = LinearGradient(
+        colors: [Color(hex: "3E41CF"), Color(hex: "6467E4"), Color(hex: "9D93EC"), Color(hex: "E3CFEF")],
+        startPoint: .top,
+        endPoint: .bottom
+    )
+
+    static let accent = LinearGradient(
+        colors: [Color(hex: "7480F7"), Color(hex: "4B4FD8")],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    // Пастельні плитки
+    static let lavender = LinearGradient(colors: [Color(hex: "ECE6FC"), Color(hex: "F9E6F2")], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static let peach    = LinearGradient(colors: [Color(hex: "FCE3D5"), Color(hex: "F8EFD9")], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static let mint     = LinearGradient(colors: [Color(hex: "DBF2E9"), Color(hex: "F3F5DB")], startPoint: .topLeading, endPoint: .bottomTrailing)
+
+    // Картка зі статистикою
+    static let statCard = LinearGradient(colors: [Color(hex: "F9F2EC"), Color(hex: "F2F2EA")], startPoint: .leading, endPoint: .trailing)
+}
+
+// MARK: - Background
+struct AppBackground: View {
+    var body: some View {
+        ZStack {
+            AppGradient.background
+            RadialGradient(
+                colors: [Color(hex: "F6C3B5").opacity(0.7), .clear],
+                center: .bottomTrailing,
+                startRadius: 20,
+                endRadius: 420
+            )
+        }
+        .ignoresSafeArea()
     }
 }
 
-struct LargeCardModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding()
-            .background(Color.cardBackground)
-            .cornerRadius(20)
-            .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+// MARK: - Hero Scaffold
+/// Градієнтна шапка зверху і біла панель із заокругленням, що «наїжджає» на неї.
+struct HeroScaffold<Hero: View, Panel: View>: View {
+    private let hero: Hero
+    private let panel: Panel
+
+    init(@ViewBuilder hero: () -> Hero, @ViewBuilder panel: () -> Panel) {
+        self.hero = hero()
+        self.panel = panel()
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                hero
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 28)
+
+                VStack(alignment: .leading, spacing: 30) {
+                    panel
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 28)
+                .padding(.bottom, 24)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(alignment: .top) {
+                    // Тягнемо білий фон нижче контенту, щоб короткі екрани не показували градієнт знизу
+                    UnevenRoundedRectangle(topLeadingRadius: 32, topTrailingRadius: 32, style: .continuous)
+                        .fill(Color.surface)
+                        .padding(.bottom, -1000)
+                }
+            }
+        }
+        .scrollIndicators(.hidden)
+        .background(AppBackground())
     }
 }
 
-extension View {
-    func cardStyle() -> some View {
-        modifier(CardModifier())
-    }
-    
-    func largeCardStyle() -> some View {
-        modifier(LargeCardModifier())
+// MARK: - Button Styles
+
+/// Біла «пігулка» на градієнті (як Send / Request)
+struct PillButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(.subheadline, weight: .semibold))
+            .foregroundStyle(Color.ink)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(Color.surface, in: Capsule())
+            .shadow(color: .black.opacity(0.10), radius: 14, y: 6)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.spring(duration: 0.2), value: configuration.isPressed)
     }
 }
 
-// MARK: - Custom Button Style
+/// Темна компактна капсула (як Get Promo)
+struct DarkCapsuleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(.subheadline, weight: .semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 11)
+            .background(Color.brandDeep, in: Capsule())
+            .opacity(configuration.isPressed ? 0.85 : 1)
+    }
+}
+
+/// Головна дія у формах — градієнтна кнопка на всю ширину
 struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.headline)
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.accentGreen)
-            .cornerRadius(15)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .shadow(color: Color.accentGreen.opacity(0.3), radius: 5, x: 0, y: 3)
+        PrimaryButtonBody(configuration: configuration)
+    }
+
+    private struct PrimaryButtonBody: View {
+        let configuration: Configuration
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            configuration.label
+                .font(.headline)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 17)
+                .background(AppGradient.accent, in: Capsule())
+                .shadow(color: Color.brand.opacity(isEnabled ? 0.35 : 0), radius: 12, y: 6)
+                .opacity(isEnabled ? 1 : 0.45)
+                .scaleEffect(configuration.isPressed ? 0.98 : 1)
+                .animation(.spring(duration: 0.2), value: configuration.isPressed)
+        }
     }
 }
 
-struct SecondaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.headline)
-            .foregroundColor(.textPrimary)
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.cardBackground)
-            .cornerRadius(15)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 3)
+// MARK: - Form Styling
+extension View {
+    /// Спільний вигляд для всіх форм (додавання / редагування)
+    func appFormStyle() -> some View {
+        self
+            .scrollContentBackground(.hidden)
+            .background(Color.surfaceSoft)
+            .tint(.brand)
+    }
+
+    /// Закріплена знизу головна кнопка форми
+    func primaryAction(_ title: String, isDisabled: Bool = false, action: @escaping () -> Void) -> some View {
+        safeAreaInset(edge: .bottom) {
+            Button(title, action: action)
+                .buttonStyle(PrimaryButtonStyle())
+                .disabled(isDisabled)
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 8)
+                .background(Color.surfaceSoft.opacity(0.95))
+        }
     }
 }
